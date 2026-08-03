@@ -1,0 +1,46 @@
+from enum import Enum
+
+class AuthProvider(str,Enum):
+    LOCAL="local"
+    GOOGLE="google"
+    GITHUB="github"
+
+class AuditAction(str,Enum):
+    LOGIN="LOGIN"
+    LOGOUT="LOGOUT"
+    REGISTER="REGISTER"
+    PASSWORD_CHANGED="PASSWORD_CHANGED"
+
+    CREATE_FOLDER = "CREATE_FOLDER"
+    RENAME_FOLDER = "RENAME_FOLDER"
+    DELETE_FOLDER = "DELETE_FOLDER"
+    MOVE_FOLDER = "MOVE_FOLDER"
+
+    UPLOAD_FILE = "UPLOAD_FILE"
+    DOWNLOAD_FILE = "DOWNLOAD_FILE"
+    RENAME_FILE = "RENAME_FILE"
+    MOVE_FILE = "MOVE_FILE"
+    DELETE_FILE = "DELETE_FILE"
+    RESTORE_FILE = "RESTORE_FILE"
+    PERMANENT_DELETE_FILE = "PERMANENT_DELETE_FILE"
+
+    AUTO_DELETE_FILE = "AUTO_DELETE_FILE"
+
+    SHARE_LINK_CREATED = "SHARE_LINK_CREATED"
+    REVOKE_SHARE_LINK = "REVOKE_SHARE_LINK"
+
+    STORAGE_QUOTA_EXCEEDED = "STORAGE_QUOTA_EXCEEDED"
+
+class ShareExpiry(str,Enum):
+    NEVER="never"
+    ONE_DAY="1_day"
+    SEVEN_DAYS="7_days"
+    THIRTY_DAYS="30_days"
+
+class ResourceType(str,Enum):
+    FILE="file"
+    FOLDER="folder"
+
+class PermissionRole(str,Enum):
+    VIEWER="viewer"
+    EDITOR="editor"

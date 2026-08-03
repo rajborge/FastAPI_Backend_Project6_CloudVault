@@ -1,0 +1,22 @@
+#virtual environment
+env/
+
+#python 
+__pycache__/
+*.pyc
+
+#environment variables
+.env
+
+#uploads
+uploads/
+
+#pytest
+.pytest_cache/
+
+#alembic
+*.sqlite
+
+#IDE
+.vscode/
+.idea/
