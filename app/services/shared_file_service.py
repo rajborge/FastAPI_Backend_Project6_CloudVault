@@ -128,7 +128,7 @@ class SharedFileService:
                raise InvalidShareException()  
         
         file=self.file_repository.get_by_id(
-            file_id=share.file_id,
+            id=share.file_id,
         )
 
         if file is None:

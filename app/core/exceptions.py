@@ -41,3 +41,6 @@ class InvalidShareException(AppException):
 
 class DuplicateFileNameException(AppException):
     pass
+
+class FileNotFoundException(AppException):
+    pass

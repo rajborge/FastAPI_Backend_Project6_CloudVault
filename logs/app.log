@@ -1,0 +1,101 @@
+2026-08-03 23:48:58,210 | DEBUG    | tzlocal | Looking up time zone info from registry
+2026-08-03 23:48:58,221 | INFO     | apscheduler.scheduler | Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-03 23:49:29,364 | DEBUG    | tzlocal | Looking up time zone info from registry
+2026-08-03 23:49:29,372 | INFO     | apscheduler.scheduler | Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-03 23:49:29,496 | INFO     | apscheduler.scheduler | Added job "cleanup_job" to job store "default"
+2026-08-03 23:49:29,496 | INFO     | apscheduler.scheduler | Scheduler started
+2026-08-03 23:49:29,498 | DEBUG    | apscheduler.scheduler | Looking for jobs to run
+2026-08-03 23:49:29,498 | INFO     | cloudvault.schedular | Cleanup scheduler started.
+2026-08-03 23:49:29,499 | DEBUG    | apscheduler.scheduler | Next wakeup is due at 2026-08-04 07:30:00+05:30 (in 27630.501765 seconds)
+2026-08-03 23:49:39,503 | INFO     | cloudvault.request | GET /docs -> 200 (2.18 ms)
+2026-08-03 23:49:39,815 | INFO     | cloudvault.request | GET /openapi.json -> 200 (230.27 ms)
+2026-08-03 23:50:16,501 | INFO     | cloudvault.request | POST /auth/login -> 200 (515.52 ms)
+2026-08-03 23:50:40,461 | INFO     | cloudvault.request | GET /folders/root -> 200 (94.92 ms)
+2026-08-03 23:50:52,127 | INFO     | cloudvault.request | GET /folders/16198dbb-4d62-414d-813b-5456939a5b41/contents -> 200 (55.39 ms)
+2026-08-03 23:51:45,803 | INFO     | cloudvault.request | PATCH /files/6e449e3e-6ddb-4de0-b138-7f009744a386/move -> 422 (22.29 ms)
+2026-08-03 23:52:12,670 | ERROR    | cloudvault.request | PATCH /files/6e449e3e-6ddb-4de0-b138-7f009744a386/move -> Unhandled Exception (94.13 ms)
+Traceback (most recent call last):
+  File "C:\FastAPI\DailyProject7_CloudVault\app\middleware\logging.py", line 27, in logging_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 2683, in app
+    await route.handle(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 1753, in handle
+    await self.original_router.handle(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 2738, in handle
+    await included_router._handle_selected(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 1773, in _handle_selected
+    await original_route.handle(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 1264, in handle
+    await app(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 150, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Program Files\Python311\Lib\contextlib.py", line 222, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\concurrency.py", line 37, in contextmanager_in_threadpool
+    raise e
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\concurrency.py", line 29, in contextmanager_in_threadpool
+    yield await run_in_threadpool(cm.__enter__)
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 136, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 711, in app
+    content = await serialize_response(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FastAPI\DailyProject7_CloudVault\env\Lib\site-packages\fastapi\routing.py", line 316, in serialize_response
+    raise ResponseValidationError(
+fastapi.exceptions.ResponseValidationError: 6 validation errors:
+  {'type': 'uuid_type', 'loc': ('response', 'id'), 'msg': 'UUID input should be a string, bytes or UUID object', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38F380>}
+  {'type': 'string_type', 'loc': ('response', 'original_name'), 'msg': 'Input should be a valid string', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38EF20>}
+  {'type': 'string_type', 'loc': ('response', 'mime_type'), 'msg': 'Input should be a valid string', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38EDE0>}
+  {'type': 'int_type', 'loc': ('response', 'size'), 'msg': 'Input should be a valid integer', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38F060>}
+  {'type': 'uuid_type', 'loc': ('response', 'folder_id'), 'msg': 'UUID input should be a string, bytes or UUID object', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38F1A0>}
+  {'type': 'datetime_type', 'loc': ('response', 'created_at'), 'msg': 'Input should be a valid datetime', 'input': <sqlalchemy.orm.attributes.InstrumentedAttribute object at 0x000001CA8E38F420>}
+
+  File "C:\FastAPI\DailyProject7_CloudVault\app\api\files.py", line 67, in move_file
+    PATCH /files/{file_id}/move
+2026-08-03 23:53:29,257 | DEBUG    | tzlocal | Looking up time zone info from registry
+2026-08-03 23:53:29,266 | INFO     | apscheduler.scheduler | Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-03 23:53:29,392 | INFO     | apscheduler.scheduler | Added job "cleanup_job" to job store "default"
+2026-08-03 23:53:29,392 | INFO     | apscheduler.scheduler | Scheduler started
+2026-08-03 23:53:29,394 | DEBUG    | apscheduler.scheduler | Looking for jobs to run
+2026-08-03 23:53:29,394 | INFO     | cloudvault.schedular | Cleanup scheduler started.
+2026-08-03 23:53:29,394 | DEBUG    | apscheduler.scheduler | Next wakeup is due at 2026-08-04 07:30:00+05:30 (in 27390.605232 seconds)
+2026-08-03 23:53:32,289 | INFO     | cloudvault.request | PATCH /files/6e449e3e-6ddb-4de0-b138-7f009744a386/move -> 200 (408.86 ms)
+2026-08-03 23:53:39,852 | INFO     | cloudvault.request | PATCH /files/6e449e3e-6ddb-4de0-b138-7f009744a386/move -> 422 (19.95 ms)
+2026-08-03 23:53:48,556 | INFO     | cloudvault.request | GET /folders/root -> 200 (57.91 ms)
+2026-08-03 23:53:53,572 | INFO     | cloudvault.request | GET /folders/16198dbb-4d62-414d-813b-5456939a5b41/contents -> 200 (43.92 ms)
+2026-08-03 23:54:08,421 | INFO     | cloudvault.request | GET /folders/ac3e5375-29ff-4c8c-9a4e-1fd909a7c963/contents -> 200 (29.90 ms)
+2026-08-03 23:55:50,877 | DEBUG    | tzlocal | Looking up time zone info from registry
+2026-08-03 23:55:50,887 | INFO     | apscheduler.scheduler | Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-03 23:55:51,010 | INFO     | apscheduler.scheduler | Added job "cleanup_job" to job store "default"
+2026-08-03 23:55:51,011 | INFO     | apscheduler.scheduler | Scheduler started
+2026-08-03 23:55:51,012 | DEBUG    | apscheduler.scheduler | Looking for jobs to run
+2026-08-03 23:55:51,012 | INFO     | cloudvault.schedular | Cleanup scheduler started.
+2026-08-03 23:55:51,013 | DEBUG    | apscheduler.scheduler | Next wakeup is due at 2026-08-04 07:30:00+05:30 (in 27248.986920 seconds)
+2026-08-03 23:55:57,081 | DEBUG    | tzlocal | Looking up time zone info from registry
+2026-08-03 23:55:57,089 | INFO     | apscheduler.scheduler | Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-03 23:55:57,211 | INFO     | apscheduler.scheduler | Added job "cleanup_job" to job store "default"
+2026-08-03 23:55:57,211 | INFO     | apscheduler.scheduler | Scheduler started
+2026-08-03 23:55:57,212 | DEBUG    | apscheduler.scheduler | Looking for jobs to run
+2026-08-03 23:55:57,213 | INFO     | cloudvault.schedular | Cleanup scheduler started.
+2026-08-03 23:55:57,213 | DEBUG    | apscheduler.scheduler | Next wakeup is due at 2026-08-04 07:30:00+05:30 (in 27242.786913 seconds)
+2026-08-03 23:56:06,455 | INFO     | cloudvault.request | PATCH /files/6e449e3e-6ddb-4de0-b138-7f009744a386/move -> 422 (399.26 ms)

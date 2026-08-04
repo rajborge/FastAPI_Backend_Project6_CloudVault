@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..core.dependencies import get_current_user
 from ..db.database import get_db
 from ..db.models.user import User
-from ..schemas.file import FileResponse as FileSchema
+from ..schemas.file import FileResponse as FileSchema,FileRenameRequest,FileMoveRequest
 from ..services.file_service import FileService
 
 router=APIRouter(
@@ -47,6 +47,36 @@ def download_file(
         path=path,
         filename=file.original_name,
         media_type=file.mime_type,
+    )
+
+@router.patch("/{file_id}/rename",response_model=FileSchema)
+def rename_file(
+    file_id:UUID,
+    data:FileRenameRequest,
+    current_user:User=Depends(get_current_user),
+    db:Session=Depends(get_db),
+):
+    service=FileService(db)
+
+    return service.rename_file(
+        file_id=file_id,
+        data=data,
+        user=current_user,
+    )
+
+@router.patch("/{file_id}/move",response_model=FileSchema)
+def move_file(
+    file_id:UUID,
+    data:FileMoveRequest,
+    user:User=Depends(get_current_user),
+    db:Session=Depends(get_db),
+):
+    service=FileService(db)
+
+    return service.move_file(
+        file_id=file_id,
+        data=data,
+        user=user,
     )
 
 @router.delete("/{file_id}")

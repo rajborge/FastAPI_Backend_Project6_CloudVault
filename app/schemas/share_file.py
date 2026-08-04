@@ -3,7 +3,7 @@ from uuid import UUID
 
 from datetime import datetime
 
-from ..db.models.enum import ShareExpiry
+from ..core.enum import ShareExpiry
 
 class ShareCreate(BaseModel):
     file_id:UUID

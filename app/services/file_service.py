@@ -14,7 +14,13 @@ from ..core.enum import AuditAction
 from ..core.enum import ResourceType,PermissionRole
 from ..schemas.file import FileRenameRequest,FileMoveRequest
 
-from ..core.exceptions import FolderNotFound,StorageQuotaExceededException,DuplicateFileNameException
+from ..core.exceptions import (
+    FolderNotFound,
+    StorageQuotaExceededException,
+    DuplicateFileNameException,
+    FileNotFoundException,
+)
+
 
 class FileService:
     def __init__(self,db:Session):
@@ -142,7 +148,7 @@ class FileService:
         self.audit_service.log(
           user=user,
           action=AuditAction.RENAME_FILE,
-          file_id=file.id,
+          file=file,
           details=f"Updated the File Name to {file.original_name}"
         )
         self.db.commit()
@@ -198,12 +204,12 @@ class FileService:
         self.audit_service.log(
             user=user,
             action=AuditAction.MOVE_FILE,
-            file_id=file.id,
+            file=file,
             details=f"Moved {file.original_name} to folder {data.folder_id}",
         )
         self.db.commit()
         self.db.refresh(file)
-        return File
+        return file
 
     def delete_file(
             self,
@@ -248,10 +254,10 @@ class FileService:
     ):
         file=self.file_repository.get_by_id(id=file_id)
 
-        if not file.is_deleted:
-            raise FileNotFoundError()
-
         if file is None:
+            raise FileNotFoundException()
+
+        if not file.is_deleted:
             raise FileNotFoundError()
         
         file.is_deleted=False

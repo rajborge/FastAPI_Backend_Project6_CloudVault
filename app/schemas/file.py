@@ -8,7 +8,7 @@ class FileResponse(BaseModel):
     original_name:str
     mime_type:str
     size:int
-    folder_id:UUID | None
+    folder_id:UUID | None=None
     created_at:datetime
 
 class FileRenameRequest(BaseModel):
@@ -18,7 +18,7 @@ class FileRenameRequest(BaseModel):
     )
 
 class FileMoveRequest(BaseModel):
-    folder_id:UUID | None
+    folder_id:UUID | None=None
 
     model_config={
         "from_attributes":True

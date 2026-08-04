@@ -8,7 +8,7 @@ from ..db.models.folder import Folder
 from ..schemas.folder import FolderCreate,FolderResponse,FolderUpdate
 from ..core.exceptions import FolderAlreadyExists,FolderNotFound
 from ..db.models.user import User
-from ..db.models.enum import AuditAction
+from ..core.enum import AuditAction
 from ..services.audit_service import AuditService
 
 class FolderService:

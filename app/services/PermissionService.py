@@ -127,7 +127,7 @@ class PermissionService:
             required_role:PermissionRole,      
     )->None:
         permission=self.get_effective_permission(
-            user=User,
+            user=user,
             resource_type=resource_type,
             resource_id=resource_id,
         )

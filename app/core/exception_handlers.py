@@ -13,7 +13,8 @@ from ..core.exceptions import(
     ShareNotFound,
     ShareLinkExpired,
     InvalidShareException,
-    DuplicateFileNameException
+    DuplicateFileNameException,
+    FileNotFoundException
 )
 
 def register_exception_handlers(app:FastAPI):
@@ -135,4 +136,14 @@ def register_exception_handlers(app:FastAPI):
         return JSONResponse(
             status_code=409,
             content={"detail":"A File with this Name Already Exists."}
+        )
+    
+    @app.exception_handler(FileNotFoundException)
+    async def file_not_found_exception(
+        request:Request,
+        exc:FileNotFoundError,
+    ):
+        return JSONResponse(
+            status_code=409,
+            content={"detail":"File is Not in The Trash."}
         )
