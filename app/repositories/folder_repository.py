@@ -98,4 +98,25 @@ class FolderRepository(BaseRepository[Folder]):
         result=self.db.execute(stmt)
         
         return list(result.scalars().all())
+    
+    def get_by_name_and_parent(
+         self,
+         *,
+         name: str,
+         parent_id: UUID | None,
+         user_id: UUID,
+    ) -> Folder | None:
+
+        stmt = (
+            select(Folder)
+            .where(
+                Folder.name == name,
+                Folder.parent_id == parent_id,
+                Folder.user_id == user_id,
+            )
+        )
+
+        result = self.db.execute(stmt)
+
+        return result.scalar_one_or_none()
 

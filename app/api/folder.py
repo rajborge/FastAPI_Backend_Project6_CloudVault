@@ -7,7 +7,7 @@ from fastapi import Query
 from app.core.dependencies import get_current_user
 from app.db.models.user import User
 from app.db.database import get_db
-from app.schemas.folder import FolderCreate,FolderResponse,FolderUpdate,FolderContentsResponse
+from app.schemas.folder import FolderCreate,FolderResponse,FolderUpdate,FolderContentsResponse,FolderMoveRequest
 from app.services.folder_service import FolderService
 
 router=APIRouter(
@@ -28,7 +28,7 @@ def create_folder(
 
     folder=service.create_folder(
         data=data,
-        user_id=current_user.id,
+        user=current_user,
     )
     return folder
 
@@ -65,6 +65,21 @@ def rename_folder(
         folder_id=folder_id,
         data=data,
         user=current_user,
+    )
+
+@router.patch("/{folder_id}/move")
+def move_folder(
+    folder_id:UUID,
+    data:FolderMoveRequest,
+    user:User=Depends(get_current_user),
+    db:Session=Depends(get_db),
+):
+    service=FolderService(db)
+
+    return service.move_folder(
+        user=user,
+        folder_id=folder_id,
+        data=data,
     )
 
 @router.delete("/{folder_id}",status_code=status.HTTP_204_NO_CONTENT)

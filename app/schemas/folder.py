@@ -11,7 +11,7 @@ class FolderCreate(BaseModel):
 class FolderResponse(BaseModel):
     id:UUID
     name:str
-    parent_id:UUID | None
+    parent_id:UUID | None=None
     created_at:datetime
 
 class FolderUpdate(BaseModel):
@@ -20,6 +20,9 @@ class FolderUpdate(BaseModel):
 class FolderContentsResponse(BaseModel):
     folders:list[FolderResponse]
     files:list[FileResponse]
+
+class FolderMoveRequest(BaseModel):
+    parent_id:UUID | None=None
 
     model_config={
         "from_attributes":True

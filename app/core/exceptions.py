@@ -44,3 +44,6 @@ class DuplicateFileNameException(AppException):
 
 class FileNotFoundException(AppException):
     pass
+
+class InvalidFolderMoveException(AppException):
+    pass

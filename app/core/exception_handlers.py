@@ -14,7 +14,8 @@ from ..core.exceptions import(
     ShareLinkExpired,
     InvalidShareException,
     DuplicateFileNameException,
-    FileNotFoundException
+    FileNotFoundException,
+    InvalidFolderMoveException,
 )
 
 def register_exception_handlers(app:FastAPI):
@@ -146,4 +147,14 @@ def register_exception_handlers(app:FastAPI):
         return JSONResponse(
             status_code=409,
             content={"detail":"File is Not in The Trash."}
+        )
+    
+    @app.exception_handler(InvalidFolderMoveException)
+    async def invalid_folder_move_exception(
+        request:Request,
+        exc:InvalidFolderMoveException,
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={"detail":"Invalid Folder destination."}
         )
