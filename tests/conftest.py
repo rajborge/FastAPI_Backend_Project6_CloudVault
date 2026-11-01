@@ -10,7 +10,7 @@ TEST_SETTINGS = {
     "DB_NAME": "cloudvault_test",
     "DB_USERNAME": "cloudvault_test",
     "DB_PASSWORD": "test-only",
-    "SECRET_KEY": "test-only-secret",
+    "SECRET_KEY": "test-only-secret-for-unit-tests-at-least-32-bytes",
     "ALGORITHM": "HS256",
     "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
     "REFRESH_TOKEN_EXPIRE_DAYS": "30",
@@ -27,6 +27,7 @@ TEST_SETTINGS = {
     "ALLOWED_DOCUMENT_TYPES": "application/pdf,text/plain",
     "WS_HEARTBEAT_INTERVAL": "30",
     "FILE_SHARE_URL": "http://localhost:8000",
+    "RATE_LIMIT_ENABLED": "false",
 }
 
 for key, value in TEST_SETTINGS.items():

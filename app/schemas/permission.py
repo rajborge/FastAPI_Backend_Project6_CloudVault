@@ -23,6 +23,8 @@ class PermissionResponse(BaseModel):
     resource_id: UUID
     role: PermissionRole
     created_at: datetime
+    username: str | None = None
+    email: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -39,3 +41,11 @@ class SharedResourceResponse(BaseModel):
     size: int | None = None
     scan_status: str | None = None
     parent_id: UUID | None = None
+    shared_at: datetime
+    owner_username: str
+    owner_email: str | None = None
+    recipient_id: UUID
+    recipient_username: str
+    recipient_email: str | None = None
+    effective_role: PermissionRole
+    capabilities: dict[str, bool]

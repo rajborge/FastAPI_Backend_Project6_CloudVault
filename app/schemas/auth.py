@@ -26,7 +26,6 @@ class RegisterRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
-        str_strip_whitespace=True,
     )
 
     @field_validator("username")
@@ -89,6 +88,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    mfa_code: str | None = Field(default=None, pattern=r"^[A-Za-z0-9]{6,64}$")
+
     identifier: str = Field(
         min_length=3,
         max_length=255,
@@ -102,7 +103,6 @@ class LoginRequest(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
-        str_strip_whitespace=True,
     )
 
 

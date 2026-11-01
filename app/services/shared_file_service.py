@@ -130,7 +130,7 @@ class SharedFileService:
         if file.storage_backend == "r2":
             from .r2_storage_service import R2StorageService
 
-            path = R2StorageService().create_download_url(object_key=file.storage_path)
+            path = R2StorageService().create_download_url(object_key=file.storage_path, filename=file.original_name, content_type=file.mime_type)
         else:
             path = self.storage_service.get_file_path(file.storage_path)
             if not path.exists():

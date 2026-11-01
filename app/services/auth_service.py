@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from app.core.config import settings
 
 from ..core.exceptions import (
     EmailAlreadyExistsException,
@@ -78,12 +80,19 @@ class AuthService:
         if not user.is_active:
             raise InactiveUserException()
 
+        if settings.REQUIRE_VERIFIED_EMAIL and not user.is_verified:
+            raise HTTPException(403, "Verify your email before signing in.")
+        if getattr(user, "mfa_secret", None):
+            from app.services.account_service import verify_mfa
+            user = self.user_repository.get_by_id_for_update(user.id)
+            verify_mfa(user, data.mfa_code)
+
         access_token = create_access_token(
-            str(user.id)
+            str(user.id), auth_version=getattr(user, "auth_version", 0) or 0
         )
 
         refresh_token = create_refresh_token(
-            str(user.id)
+            str(user.id), auth_version=getattr(user, "auth_version", 0) or 0
         )
 
         refresh_payload = decode_token(
@@ -156,7 +165,7 @@ class AuthService:
         ):
             raise InvalidCredentialsException()
 
-        session = self.refresh_repository.get_by_jti(
+        session = self.refresh_repository.get_by_jti_for_update(
             jti
         )
 
@@ -167,6 +176,11 @@ class AuthService:
             raise InvalidCredentialsException()
 
         if session.is_revoked:
+            # A consumed token has been presented again. Revoke every successor
+            # for this account instead of letting a stolen session survive.
+            self.refresh_repository.revoke_all_for_user(user_id)
+            self.user_repository.invalidate_access(user_id)
+            self.db.commit()
             raise InvalidCredentialsException()
 
         if session.expires_at < datetime.now(
@@ -183,13 +197,15 @@ class AuthService:
 
         if not user.is_active:
             raise InactiveUserException()
+        if payload.get("ver", 0) != (getattr(user, "auth_version", 0) or 0):
+            raise InvalidCredentialsException()
 
         access_token = create_access_token(
-            str(user.id)
+            str(user.id), auth_version=getattr(user, "auth_version", 0) or 0
         )
 
         new_refresh_token = create_refresh_token(
-            str(user.id)
+            str(user.id), auth_version=getattr(user, "auth_version", 0) or 0
         )
 
         new_payload = decode_token(

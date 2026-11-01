@@ -20,6 +20,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Explicitly reduce newer roles to the nearest supported capability.
+    op.execute("UPDATE permissions SET role = 'EDITOR' WHERE role::text = 'OWNER'")
+    op.execute("UPDATE permissions SET role = 'VIEWER' WHERE role::text = 'COMMENTER'")
     op.execute("ALTER TABLE permissions ALTER COLUMN role TYPE text USING role::text")
     op.execute("ALTER TYPE permissionrole RENAME TO permissionrole_old")
     op.execute("CREATE TYPE permissionrole AS ENUM ('VIEWER', 'EDITOR')")

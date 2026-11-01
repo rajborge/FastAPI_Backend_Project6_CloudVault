@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from app.services.embedding_service import embed_text, model_name
 
 from ..core.exceptions import FileNotFoundException, FileNotReadyException
 from ..db.models.user import User
@@ -72,6 +73,7 @@ class SearchService:
             FROM files AS f
             WHERE f.user_id = :user_id
               AND f.is_deleted = FALSE
+              AND f.version_of IS NULL
               AND f.scan_status = 'CLEAN'
             ORDER BY f.created_at ASC
             """
@@ -84,7 +86,7 @@ class SearchService:
         if len(query) < 2:
             return []
 
-        embedding = vector_literal(hashed_text_vector(query))
+        embedding = vector_literal(embed_text(query))
 
         statement = text(
             """
@@ -136,8 +138,10 @@ class SearchService:
                 JOIN files AS f ON f.id = s.file_id
                 WHERE f.user_id = :user_id
                   AND f.is_deleted = FALSE
+              AND f.version_of IS NULL
                   AND f.scan_status = 'CLEAN'
                   AND s.embedding IS NOT NULL
+                  AND s.embedding_model = :embedding_model
             )
             SELECT
                 id,
@@ -180,6 +184,7 @@ class SearchService:
             {
                 "query": query,
                 "embedding": embedding,
+                "embedding_model": model_name(),
                 "user_id": user.id,
                 "limit": limit,
             },

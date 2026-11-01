@@ -1,4 +1,7 @@
 from uuid import UUID
+from sqlalchemy import select, and_, or_
+from ..db.models.file import File
+from ..db.models.folder import Folder
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -36,6 +39,10 @@ class PermissionService:
         resource_id: UUID,
         role: PermissionRole,
     ):
+        if role == PermissionRole.OWNER:
+            raise HTTPException(
+                422, "Ownership cannot be granted. Choose Viewer, Commenter, or Editor."
+            )
         self.check_permissions(
             user=actor,
             resource_type=resource_type,
@@ -93,6 +100,16 @@ class PermissionService:
         else:
             permission.role = role
 
+        from ..db.models.collaboration import Notification
+
+        self.db.add(
+            Notification(
+                user_id=target_user.id,
+                file_id=resource_id if resource_type == ResourceType.FILE else None,
+                kind="sharing",
+                message=f"{getattr(actor, 'username', 'The owner')} shared an item with you as {role.value}.",
+            )
+        )
         self.db.commit()
         self.db.refresh(permission)
         return permission
@@ -117,7 +134,7 @@ class PermissionService:
                 resource_id=resource_id,
             )
             if permission is not None:
-                return permission.role
+                return self.recipient_role(permission.role)
             if file.folder_id is None:
                 return None
             current = self.folder_repository.get_by_id(id=file.folder_id)
@@ -135,7 +152,7 @@ class PermissionService:
                 resource_id=current.id,
             )
             if permission is not None:
-                return permission.role
+                return self.recipient_role(permission.role)
             if current.parent_id is None:
                 break
             current = self.folder_repository.get_by_id(id=current.parent_id)
@@ -198,10 +215,77 @@ class PermissionService:
             resource_id=resource_id,
             required_role=PermissionRole.OWNER,
         )
-        return self.permission_repository.get_permissions_for_resource(
+        permissions = self.permission_repository.get_permissions_for_resource(
             resource_type=resource_type,
             resource_id=resource_id,
         )
+        return [self.describe_permission(permission) for permission in permissions]
+
+    @staticmethod
+    def recipient_role(role):
+        # Legacy delegated OWNER rows never transfer the resource's ownership.
+        return PermissionRole.EDITOR if role == PermissionRole.OWNER else role
+
+    def describe_permission(self, permission):
+        person = self.user_repository.get_by_id(permission.user_id)
+        return {
+            "id": permission.id,
+            "user_id": permission.user_id,
+            "resource_type": permission.resource_type,
+            "resource_id": permission.resource_id,
+            "role": self.recipient_role(permission.role),
+            "created_at": permission.created_at,
+            "username": person.username if person else "Unavailable user",
+            "email": person.email if person else None,
+        }
+
+    def resource_access(self, *, user, resource_type, resource_id):
+        resource = (
+            self.file_repository
+            if resource_type == ResourceType.FILE
+            else self.folder_repository
+        ).get_by_id(id=resource_id)
+        if resource is None or (
+            resource_type == ResourceType.FILE
+            and (resource.is_deleted or resource.version_of is not None)
+        ):
+            raise HTTPException(404, "Resource not found.")
+        role = self.get_effective_permission(
+            user=user, resource_type=resource_type, resource_id=resource_id
+        )
+        if role is None:
+            raise HTTPException(403, "You no longer have access to this item.")
+        owner = self.user_repository.get_by_id(resource.user_id)
+        owns = resource.user_id == user.id
+        file = resource_type == ResourceType.FILE
+        clean = not file or resource.scan_status == "CLEAN"
+        editable = role in {PermissionRole.OWNER, PermissionRole.EDITOR}
+        return {
+            "owner_id": resource.user_id,
+            "owner_username": owner.username if owner else "Unavailable owner",
+            "owner_email": owner.email if owner else None,
+            "effective_role": role,
+            "capabilities": {
+                "can_download": file and clean,
+                "can_preview": file
+                and clean
+                and resource.mime_type
+                in {
+                    "application/pdf",
+                    "text/plain",
+                    "image/png",
+                    "image/jpeg",
+                    "image/webp",
+                },
+                "can_comment": file and role != PermissionRole.VIEWER,
+                "can_edit": editable,
+                "can_manage_access": owns,
+                "can_replace": owns and file and clean,
+                "can_trash": file and editable,
+                "can_delete_folder": owns and not file,
+                "can_add_files": owns and not file,
+            },
+        }
 
     def revoke_permission(self, *, permission_id: UUID, actor: User) -> None:
         permission = self.permission_repository.get_by_id(permission_id)
@@ -214,48 +298,85 @@ class PermissionService:
             required_role=PermissionRole.OWNER,
         )
         self.permission_repository.delete(permission)
+        from ..db.models.collaboration import Notification
+
+        self.db.add(
+            Notification(
+                user_id=permission.user_id,
+                kind="sharing",
+                message="The owner revoked your access to a shared item.",
+            )
+        )
         self.db.commit()
 
+    def sharing_item(self, permission, recipient):
+        file = permission.resource_type == ResourceType.FILE
+        resource = (self.file_repository if file else self.folder_repository).get_by_id(
+            id=permission.resource_id
+        )
+        if resource is None or (
+            file and (resource.is_deleted or resource.version_of is not None)
+        ):
+            return None
+        access = self.resource_access(
+            user=recipient,
+            resource_type=permission.resource_type,
+            resource_id=resource.id,
+        )
+        return {
+            "permission_id": permission.id,
+            "resource_type": permission.resource_type,
+            "resource_id": resource.id,
+            "role": access["effective_role"],
+            "name": resource.original_name if file else resource.name,
+            "created_at": resource.created_at,
+            "shared_at": permission.created_at,
+            "recipient_id": recipient.id,
+            "recipient_username": recipient.username,
+            "recipient_email": recipient.email,
+            "mime_type": resource.mime_type if file else None,
+            "size": resource.size if file else None,
+            "scan_status": resource.scan_status if file else None,
+            "parent_id": resource.folder_id if file else resource.parent_id,
+            **access,
+        }
+
     def list_shared_with_me(self, *, user: User) -> list[dict]:
-        results: list[dict] = []
         permissions = self.permission_repository.get_permissions_for_user(
             user_id=user.id
         )
-        for permission in permissions:
-            if permission.resource_type == ResourceType.FOLDER:
-                folder = self.folder_repository.get_by_id(id=permission.resource_id)
-                if folder is None:
-                    continue
-                results.append(
-                    {
-                        "permission_id": permission.id,
-                        "resource_type": ResourceType.FOLDER,
-                        "resource_id": folder.id,
-                        "role": permission.role,
-                        "name": folder.name,
-                        "owner_id": folder.user_id,
-                        "created_at": folder.created_at,
-                        "parent_id": folder.parent_id,
-                    }
-                )
-                continue
+        return [
+            item
+            for permission in permissions
+            if (item := self.sharing_item(permission, user)) is not None
+        ]
 
-            file = self.file_repository.get_by_id(id=permission.resource_id)
-            if file is None or file.is_deleted:
-                continue
-            results.append(
-                {
-                    "permission_id": permission.id,
-                    "resource_type": ResourceType.FILE,
-                    "resource_id": file.id,
-                    "role": permission.role,
-                    "name": file.original_name,
-                    "owner_id": file.user_id,
-                    "created_at": file.created_at,
-                    "mime_type": file.mime_type,
-                    "size": file.size,
-                    "scan_status": file.scan_status,
-                    "parent_id": file.folder_id,
-                }
+    def list_shared_by_me(self, *, user: User) -> list[dict]:
+        permissions = self.db.execute(
+            select(Permission)
+            .outerjoin(
+                File,
+                and_(
+                    Permission.resource_type == ResourceType.FILE,
+                    File.id == Permission.resource_id,
+                ),
             )
-        return results
+            .outerjoin(
+                Folder,
+                and_(
+                    Permission.resource_type == ResourceType.FOLDER,
+                    Folder.id == Permission.resource_id,
+                ),
+            )
+            .where(or_(File.user_id == user.id, Folder.user_id == user.id))
+            .order_by(Permission.created_at.desc())
+        ).scalars()
+        result = []
+        for permission in permissions:
+            recipient = self.user_repository.get_by_id(permission.user_id)
+            if (
+                recipient
+                and (item := self.sharing_item(permission, recipient)) is not None
+            ):
+                result.append(item)
+        return result

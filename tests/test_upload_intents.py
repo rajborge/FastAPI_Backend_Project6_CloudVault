@@ -14,6 +14,36 @@ from app.services.upload_intent_service import UploadIntentService
 DIGEST = "b" * 64
 
 
+def test_completed_intent_retries_do_not_charge_quota_twice():
+    service = make_service()
+    user = make_user(used=60)
+    stored = SimpleNamespace(id=uuid4(), is_deleted=False)
+    intent = SimpleNamespace(status="COMPLETED", file_id=stored.id)
+    service.intent_repository.get_for_user_for_update.return_value = intent
+    service.file_repository.get_by_id.return_value = stored
+    assert service.complete_intent(intent_id=uuid4(), user=user, parts=[]) is stored
+    assert user.storage_used == 60
+    service.user_repository.get_by_id_for_update.assert_not_called()
+    service.file_repository.create.assert_not_called()
+
+
+def test_resuming_multipart_reads_storage_parts_without_reserving_more_quota():
+    service = make_service()
+    user = make_user(reserved=32)
+    intent = SimpleNamespace(id=uuid4(), user_id=user.id, status="OPEN",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        multipart_upload_id="test-upload", object_key="users/test/object",
+        mime_type="text/plain", content_sha256=DIGEST, expected_size=32)
+    service.intent_repository.get_for_user_for_update.return_value = intent
+    service.storage.head_object_if_exists.return_value = None
+    service.storage.list_uploaded_parts.return_value = [{"part_number": 1, "etag": "test-etag"}]
+    result = service.resume_intent(intent_id=intent.id, user=user)
+    assert result['completed_parts'] == [{"part_number": 1, "etag": "test-etag"}]
+    assert result['multipart'] is True and result['upload_url'] is None
+    assert user.storage_reserved == 32
+    service.intent_repository.create.assert_not_called()
+
+
 def make_service():
     service = UploadIntentService.__new__(UploadIntentService)
     service.storage = Mock()

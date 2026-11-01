@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from ..core.config import settings
 from ..core.enum import AuditAction, PermissionRole, ResourceType
@@ -115,7 +116,7 @@ class FileService:
             self.storage_service.delete_file(storage_path)
             raise
 
-    def download_file(self, *, file_id: UUID, user: User):
+    def readable_file(self, *, file_id: UUID, user: User):
         self.permission_service.check_permissions(
             user=user,
             resource_type=ResourceType.FILE,
@@ -127,6 +128,11 @@ class FileService:
             raise FileNotFoundException()
         if file.scan_status != "CLEAN":
             raise FileNotReadyException()
+
+        return file
+
+    def download_file(self, *, file_id: UUID, user: User):
+        file = self.readable_file(file_id=file_id, user=user)
 
         self.audit_service.log(
             user=user,
@@ -312,8 +318,7 @@ class FileService:
         if file is None:
             raise FileNotFoundException()
 
-        payload_to_delete = self.storage_blob_repository.release_file_reference(file)
-        file.user.storage_used = max(0, file.user.storage_used - file.size)
+        payloads = self._release_versions_and_payload(file)
 
         # Log without a file FK; audit FK uses SET NULL in the new migration,
         # but avoiding the FK here also preserves the event on immediate delete.
@@ -324,7 +329,8 @@ class FileService:
         )
         self.file_repository.delete(file)
         self.db.commit()
-        self._delete_payload_reference(payload_to_delete)
+        for payload in payloads:
+            self._delete_payload_reference(payload)
 
     def get_recycle_bin(self, *, user: User):
         return self.file_repository.list_deleted_files(user_id=user.id)
@@ -336,16 +342,30 @@ class FileService:
         payloads_to_delete: list[tuple[str, str]] = []
 
         for file in expired_files:
-            payload_to_delete = self.storage_blob_repository.release_file_reference(file)
-            if payload_to_delete is not None:
-                payloads_to_delete.append(payload_to_delete)
-            file.user.storage_used = max(0, file.user.storage_used - file.size)
+            payloads_to_delete.extend(self._release_versions_and_payload(file))
             self.file_repository.delete(file)
 
         self.db.commit()
         for payload in payloads_to_delete:
             self._delete_payload_reference(payload)
         return len(expired_files)
+
+    def _release_versions_and_payload(self, file):
+        versions = list(self.db.execute(select(File).where(File.version_of == file.id)
+            .order_by(File.id).with_for_update()).scalars())
+        payloads = []
+        for row in [*versions, file]:
+            payload = self.storage_blob_repository.release_file_reference(row)
+            if payload is not None:
+                payloads.append(payload)
+            if row.scan_status != "INFECTED":
+                self.user_repository.release_storage(row.user_id, row.size)
+            if row is not file:
+                self.db.delete(row)
+            self.db.flush()
+        # Flush child removals before the parent's cascading delete.
+        self.db.flush()
+        return payloads
 
     def _delete_payload_reference(self, payload: tuple[str, str] | None) -> None:
         if payload is None:

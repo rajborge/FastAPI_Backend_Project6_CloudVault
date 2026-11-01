@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME:?Set DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      retries: 30
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes: [clamav_data:/var/lib/clamav]
+  api:
+    build:
+      context: .
+      args:
+        ENABLE_SEMANTIC_SEARCH: ${ENABLE_SEMANTIC_SEARCH:-false}
+    image: cloudvault-app:production
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CLAMAV_HOST: clamav
+      SCHEDULER_ENABLED: 'false'
+      REFRESH_COOKIE_SECURE: 'true'
+      DEBUG: 'false'
+      ENVIRONMENT: production
+      FILE_SHARE_URL: https://${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN}
+      ACCOUNT_FRONTEND_URL: https://${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN}
+      CORS_ORIGINS: https://${PUBLIC_DOMAIN}
+      HF_HOME: /app/model-cache
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log --proxy-headers --forwarded-allow-ips='*'"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    volumes: [uploads:/app/uploads, model_cache:/app/model-cache]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 10s
+      retries: 20
+  worker:
+    image: cloudvault-app:production
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CLAMAV_HOST: clamav
+      HF_HOME: /app/model-cache
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --concurrency=2
+    healthcheck:
+      test: [CMD-SHELL, "celery -A app.core.celery_app.celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      api: {condition: service_healthy}
+    volumes: [uploads:/app/uploads, model_cache:/app/model-cache]
+  scheduler:
+    image: cloudvault-app:production
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    command: python -m app.schedular.runner
+    depends_on:
+      api: {condition: service_healthy}
+    volumes: [uploads:/app/uploads]
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN}
+    ports: ["80:80", "443:443"]
+    depends_on:
+      api: {condition: service_healthy}
+    volumes: [caddy_data:/data, caddy_config:/config]
+volumes:
+  postgres_data:
+  redis_data:
+  clamav_data:
+  uploads:
+  caddy_data:
+  caddy_config:
+  model_cache:

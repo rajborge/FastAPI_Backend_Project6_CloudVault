@@ -42,3 +42,14 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             .values(is_revoked=True)
         )
         self.db.execute(stmt)
+
+    def get_by_jti_for_update(self, jti: UUID) -> RefreshToken | None:
+        return self.db.execute(
+            select(RefreshToken).where(RefreshToken.jti == jti)
+            .with_for_update().execution_options(populate_existing=True)
+        ).scalar_one_or_none()
+
+    def revoke_all_for_user(self, user_id: UUID) -> None:
+        self.db.execute(update(RefreshToken).where(
+            RefreshToken.user_id == user_id
+        ).values(is_revoked=True))

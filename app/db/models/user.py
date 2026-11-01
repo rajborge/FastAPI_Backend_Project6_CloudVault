@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean,String,Enum,DateTime,BigInteger
+from sqlalchemy import Boolean,String,Enum,DateTime,BigInteger,JSON
 from sqlalchemy.orm import Mapped,mapped_column,relationship
 
 from ...core.enum import AuthProvider
@@ -21,6 +21,12 @@ if TYPE_CHECKING:
 
 class User(BaseModel):
     __tablename__="users"
+
+    auth_version: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    mfa_secret: Mapped[str | None] = mapped_column(String(512))
+    mfa_pending_secret: Mapped[str | None] = mapped_column(String(512))
+    mfa_last_step: Mapped[int] = mapped_column(BigInteger, default=-1, nullable=False)
+    mfa_recovery_hashes: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     username:Mapped[str]=mapped_column(
         String(50),

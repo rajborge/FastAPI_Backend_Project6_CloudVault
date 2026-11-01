@@ -1,6 +1,6 @@
 # CloudVault
 
-CloudVault is a FastAPI file-storage backend with direct Cloudflare R2 upload sessions, quota reservations, background ClamAV scanning, and PostgreSQL metadata.
+CloudVault is a React/TypeScript file workspace and FastAPI file-storage backend with direct Cloudflare R2 upload sessions, quota reservations, background ClamAV scanning, and PostgreSQL metadata.
 
 ## Main features
 
@@ -14,7 +14,9 @@ CloudVault is a FastAPI file-storage backend with direct Cloudflare R2 upload se
 - Background text extraction from text files and PDFs, image OCR through Tesseract, and ranked content search with snippets.
 - Audit history, health endpoints, Alembic migrations, and a Docker Compose backend stack.
 
-Search currently uses PostgreSQL full-text search and deterministic hashed lexical vectors stored in pgvector. Transformer-based semantic embeddings are a possible future upgrade. OCR currently targets image files; scanned PDF OCR needs a separate pipeline. Notification and WebSocket scaffolding is present but is not exposed by the main application.
+The workspace also includes file previews, comments, revision replacement/restore, sharing-link management, folder picking, upload cancellation/resume, storage usage, and real-time scan/index notifications. Browser refresh tokens use HttpOnly cookies with CSRF protection; account recovery, email verification, authenticator MFA, and one-use MFA recovery codes are available.
+
+Search supports PostgreSQL full-text ranking and either lightweight lexical vectors or an optional local sentence-transformers model. Scanned PDF pages and image files use Tesseract OCR. Indexing failures are visible and retryable. A dedicated scheduler recovers interrupted scan/index jobs independently of API workers.
 
 ## Frontend
 
@@ -30,13 +32,13 @@ The frontend defaults to `http://localhost:8000` for the API. Set `VITE_API_BASE
 
 Use `npm run build` for a production frontend build and `npm run lint` for frontend checks. Docker Compose starts the backend services; the frontend runs separately.
 
-## Suggested next steps
+## Deployment and configuration
 
-1. Add CI for backend tests, frontend build/lint, and integration tests against PostgreSQL, Redis, object storage, and ClamAV.
-2. Complete account recovery and email verification, add MFA, and harden browser token handling and authentication rate limits.
-3. Add file version history, previews, and comments to complement the existing sharing roles.
-4. Upgrade content search with semantic embeddings, scanned PDF OCR, and explicit indexing progress/error states.
-5. Finish real-time upload/scan notifications and add operational monitoring, backups, and restore drills.
+See [deploy/OPERATIONS.md](deploy/OPERATIONS.md) for same-origin HTTPS deployment, SMTP/MFA configuration, R2 CORS, worker monitoring, and backup/restore drills. `compose.production.yml` includes a Caddy frontend, private service networking, a worker, and a singleton scheduler. It requires your hostname and private deployment settings. No external services are provisioned automatically.
+
+To enable learned embeddings, install `requirements-semantic.txt`, configure `EMBEDDING_MODEL` identically for API and worker, and reindex all files. The model must produce 384 dimensions. The default remains lexical search until a model is configured.
+
+Changes in this update require `alembic upgrade head`. Do this after a verified backup. Existing JWT access tokens with no version claim retain version zero; password resets, detected refresh reuse, and MFA changes invalidate previous sessions.
 
 ## Repository hygiene
 
@@ -59,4 +61,18 @@ Until R2 credentials are configured, `/files/upload` remains available for local
 
 ## Tests
 
-Run the backend tests with `python -m pytest`. Tests use fake object storage, scanner, and database dependencies and do not require cloud credentials. Database migrations and end-to-end Compose behavior should also be verified against the running local services.
+Run unit tests with `python -m pytest`. Database integration tests skip unless `TEST_DATABASE_URL` points to a disposable PostgreSQL database ending in `_test`. To run the complete local database suite:
+
+```sh
+docker compose -p cloudvault-verification -f compose.test.yml up -d --wait
+# Set TEST_DATABASE_URL and DB_* to the isolated test credentials/port in compose.test.yml.
+# Set REDIS_HOST=127.0.0.1 and REDIS_PORT=56379.
+python scripts/verify_migrations.py
+python -m pytest -q
+```
+
+The migration verifier intentionally rolls the disposable database back to base and re-upgrades it; never use a database containing real data. Integration fixtures clear test tables. The test database name guard is mandatory.
+
+Frontend checks run from `frontend`: `npm run build`, `npm run lint`, and `npm test`. Install the test browser with `npx playwright install chromium`, or set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome. Browser tests use mocked API responses; live R2/CORS, SMTP delivery, and full OCR/model performance need deployment smoke tests.
+
+GitHub Actions runs backend tests against PostgreSQL/Redis, migration cycles, frontend build/lint/browser tests, dependency audits, and a redacted secret scan. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for verification coverage and deployment-dependent work.

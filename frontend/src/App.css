@@ -1609,3 +1609,87 @@
     display: none;
   }
 }
+
+.tool-dialog { border: 1px solid #dce6df; border-radius: 18px; padding: 26px; width: min(780px, calc(100vw - 32px)); max-height: 88vh; overflow: auto; color: #223c31; background: #fff; box-shadow: 0 24px 90px #123a2633; }
+.tool-dialog::backdrop { background: #142e2366; backdrop-filter: blur(4px); }
+.tool-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.tool-dialog h2 { overflow-wrap: anywhere; }
+.tool-dialog label { display: grid; gap: 8px; margin: 16px 0; }
+.tool-dialog input, .tool-dialog select, .tool-dialog textarea { border: 1px solid #ccd9d0; border-radius: 8px; padding: 10px; width: 100%; }
+.tool-dialog button { cursor: pointer; }
+.tool-tabs { display: flex; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+.tool-tabs button, .tool-list button { border: 1px solid #ccdbd1; background: #f3f8f4; border-radius: 8px; padding: 8px 12px; }
+.tool-tabs .active { background: #d5eadb; }
+.tool-list { display: grid; gap: 12px; margin: 18px 0; }
+.tool-list article { padding: 12px; border: 1px solid #e0e9e2; border-radius: 10px; overflow-wrap: anywhere; }
+.tool-list p { white-space: pre-wrap; }
+.file-preview { width: 100%; min-height: 300px; max-height: 60vh; object-fit: contain; border: 0; }
+.quota-summary { display: grid; gap: 7px; font-size: 12px; padding: 16px 10px; }
+.quota-summary meter { width: 100%; accent-color: #2b7051; }
+.mfa-key { overflow-wrap: anywhere; }
+
+.file-open-name { border: 0; background: none; color: #1e6048; font: inherit; font-weight: 650; text-align: left; padding: 0; cursor: pointer; overflow-wrap: anywhere; }
+.file-open-name:hover { text-decoration: underline; }
+.sharing-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.sharing-tabs button { border: 1px solid #d2e1d7; background: #fff; border-radius: 10px; padding: 12px 18px; cursor: pointer; }
+.sharing-tabs [aria-selected=true] { background: #147957; color: #fff; }
+.sharing-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,340px),1fr)); gap: 18px; margin-top: 20px; }
+.sharing-card, .access-owner, .verification-card { border: 1px solid #dbe8df; border-radius: 14px; background: #fff; padding: 20px; }
+.sharing-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sharing-card dl { display: grid; gap: 12px; margin: 18px 0; }
+.sharing-card dt { font-size: 11px; color: #6e8276; text-transform: uppercase; letter-spacing: .06em; }
+.sharing-card dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.sharing-card small, .sharing-person small, .access-owner small { display: block; font-size: 12px; color: #6b8073; }
+.sharing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.sharing-role-description, .scan-label { font-size: 12px; line-height: 1.6; }
+.scan-label { color: #91671d; } .scan-label.ready { color: #237248; }
+.role-guide { background: #edf5ef; padding: 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; }
+.role-guide summary { cursor: pointer; font-weight: 650; }
+.permission-person { flex-wrap: wrap; } .sharing-person { flex: 1; min-width: 160px; }
+.text-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 55vh; overflow-y: auto; padding: 16px; background: #f2f6f3; }
+.shared-folder-context { font-size: 13px; color: #476755; padding: 12px 0; }
+.verification-card { margin: 18px 0; font-size: 13px; line-height: 1.7; }
+
+/* Match workspace tools to the original CloudVault surfaces and typography. */
+.tool-dialog { padding: 24px; border-color: var(--line); border-radius: 8px; color: var(--ink); box-shadow: var(--shadow), 0 24px 80px #123a2626; font-size: 13px; line-height: 1.6; }
+.tool-dialog > header { margin: -24px -24px 20px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
+.tool-dialog h2 { margin: 0; font: 600 20px/1.4 Manrope, sans-serif; }
+.tool-dialog h3 { margin: 0 0 8px; font: 600 15px/1.4 Manrope, sans-serif; }
+.tool-dialog input, .tool-dialog select, .tool-dialog textarea { color: var(--ink); border-color: var(--line); border-radius: 5px; background: var(--surface); font: inherit; }
+.tool-dialog label { color: var(--ink); font-size: 12px; font-weight: 600; }
+.tool-dialog a, .auth-form a { color: var(--green-dark); text-underline-offset: 3px; }
+.tool-tabs { gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.tool-tabs button { padding: 7px 14px; border-color: transparent; border-radius: 5px; background: transparent; color: var(--muted); text-transform: capitalize; font-size: 12px; font-weight: 600; }
+.tool-tabs button.active { background: var(--green-soft); color: var(--green-dark); }
+.tool-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+.sharing-panel { padding: 20px; }
+.sharing-tabs { gap: 4px; border-bottom: 1px solid var(--line); }
+.sharing-tabs button { margin-bottom: -1px; padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
+.sharing-tabs [aria-selected=true] { border-bottom-color: var(--green); color: var(--green-dark); background: transparent; }
+.sharing-cards { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.sharing-card, .access-owner, .verification-card, .security-section { border: 1px solid var(--line); border-radius: 6px; padding: 18px; background: var(--surface); }
+.sharing-card-heading .file-open-name { flex: 1; min-width: 0; color: var(--ink); font-size: 13px; }
+.shared-file-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; color: var(--green-dark); background: var(--green-soft); border-radius: 6px; }
+.sharing-card dl { grid-template-columns: 1fr 1fr; gap: 14px 18px; font-size: 12px; }
+.sharing-card dt { color: var(--muted); font-size: 10px; }
+.sharing-card small, .sharing-person small, .access-owner small { color: var(--muted); font-size: 11px; }
+.sharing-role-description { color: var(--muted); }
+.sharing-card .sharing-actions { padding-top: 14px; border-top: 1px solid var(--line); }
+.sharing-card .button { min-height: 34px; padding: 0 11px; font-size: 11px; }
+.role-guide { padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: #f9fbf9; color: var(--muted); font-size: 12px; }
+.role-guide summary { color: var(--ink); }
+.verification-card { margin: 18px 0 14px; }
+.verification-card > p > strong { margin-left: 8px; color: var(--green-dark); font-size: 11px; }
+.security-section-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.security-section-heading h3 { margin: 0; }
+.mfa-steps { padding-left: 20px; color: var(--muted); font-size: 12px; }
+.mfa-steps li { padding: 3px 0; }
+.mfa-key, .recovery-codes { padding: 14px; border: 1px solid var(--line); border-radius: 5px; background: var(--canvas); }
+.mfa-key small { display: block; margin-bottom: 8px; color: var(--muted); }
+.mfa-key code { display: block; user-select: all; letter-spacing: .08em; color: var(--green-dark); }
+.mfa-key p, .recovery-codes p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+.recovery-codes { margin-top: 16px; }
+.recovery-codes pre { overflow-wrap: anywhere; white-space: pre-wrap; user-select: all; }
+.security-footer { padding-top: 8px; text-align: right; }
+.account-success { padding: 12px; background: var(--green-soft); border-radius: 5px; color: var(--green-dark); }
+@media (max-width: 600px) { .sharing-panel { padding: 14px; } .sharing-card dl { grid-template-columns: 1fr; } .tool-dialog { padding: 18px; } .tool-dialog > header { margin: -18px -18px 16px; padding: 16px 18px; } }

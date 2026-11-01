@@ -81,3 +81,7 @@ def stop_schedular():
     if schedular.running:
         schedular.shutdown(wait=False)
         logger.info("Cleanup scheduler stopped.")
+
+from app.tasks.recovery import recover_jobs
+schedular.add_job(recover_jobs, trigger="interval", minutes=1, id="recover_jobs",
+    max_instances=1, coalesce=True, replace_existing=True)

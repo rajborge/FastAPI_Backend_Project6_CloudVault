@@ -35,7 +35,10 @@ services:
   api:
     build: .
     image: cloudvault-app:local
-    env_file: .env
+    env_file:
+      - .env
+      - path: .env.mfa.local
+        required: false
     command: >
       sh -c "alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
@@ -64,7 +67,10 @@ services:
 
   worker:
     image: cloudvault-app:local
-    env_file: .env
+    env_file:
+      - .env
+      - path: .env.mfa.local
+        required: false
     command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --concurrency=2
     depends_on:
       api:
@@ -73,6 +79,19 @@ services:
         condition: service_healthy
       clamav:
         condition: service_started
+    volumes:
+      - cloudvault_uploads:/app/uploads
+
+  scheduler:
+    image: cloudvault-app:local
+    env_file:
+      - .env
+      - path: .env.mfa.local
+        required: false
+    command: python -m app.schedular.runner
+    depends_on:
+      api:
+        condition: service_healthy
     volumes:
       - cloudvault_uploads:/app/uploads
 

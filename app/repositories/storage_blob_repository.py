@@ -42,6 +42,7 @@ class StorageBlobRepository:
                 StorageBlob.content_sha256 == content_sha256,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         blob = self.db.execute(statement).scalar_one()
         duplicate_object_key = (
@@ -61,6 +62,7 @@ class StorageBlobRepository:
             select(StorageBlob)
             .where(StorageBlob.id == file.blob_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         blob = self.db.execute(statement).scalar_one_or_none()
         if blob is None:

@@ -14,7 +14,6 @@ from ..schemas.permission import (
 )
 from ..services.PermissionService import PermissionService
 
-
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
 
@@ -24,7 +23,8 @@ def grant_permission(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return PermissionService(db).grant_permission(
+    service = PermissionService(db)
+    permission = service.grant_permission(
         actor=current_user,
         target_user_id=data.target_user_id,
         target_identifier=data.target_identifier,
@@ -32,6 +32,7 @@ def grant_permission(
         resource_id=data.resource_id,
         role=data.role,
     )
+    return service.describe_permission(permission)
 
 
 @router.get("/shared-with-me", response_model=list[SharedResourceResponse])
@@ -40,6 +41,25 @@ def shared_with_me(
     db: Session = Depends(get_db),
 ):
     return PermissionService(db).list_shared_with_me(user=current_user)
+
+
+@router.get("/shared-by-me", response_model=list[SharedResourceResponse])
+def shared_by_me(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    return PermissionService(db).list_shared_by_me(user=current_user)
+
+
+@router.get("/access")
+def resource_access(
+    resource_type: ResourceType,
+    resource_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return PermissionService(db).resource_access(
+        user=current_user, resource_type=resource_type, resource_id=resource_id
+    )
 
 
 @router.get("", response_model=list[PermissionResponse])

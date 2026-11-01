@@ -159,11 +159,11 @@ def register_exception_handlers(app:FastAPI):
     @app.exception_handler(FileNotFoundException)
     async def file_not_found_exception(
         request:Request,
-        exc:FileNotFoundError,
+        exc:FileNotFoundException,
     ):
         return JSONResponse(
-            status_code=409,
-            content={"detail":"File is Not in The Trash."}
+            status_code=404,
+            content={"detail":"File not found."}
         )
     
     @app.exception_handler(InvalidFolderMoveException)

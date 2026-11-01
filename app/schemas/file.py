@@ -9,8 +9,14 @@ class FileResponse(BaseModel):
     mime_type:str
     size:int
     scan_status:str="PENDING_SCAN"
+    index_status:str="PENDING"
+    index_error:str | None=None
     folder_id:UUID | None=None
     created_at:datetime
+    owner_id: UUID | None = None
+    owner_username: str | None = None
+    effective_role: str | None = None
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
 
 class UploadIntentCreate(BaseModel):

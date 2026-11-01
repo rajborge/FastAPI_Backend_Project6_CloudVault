@@ -24,7 +24,9 @@ class R2StorageService:
             "R2_ACCESS_KEY_ID": settings.R2_ACCESS_KEY_ID,
             "R2_SECRET_ACCESS_KEY": settings.R2_SECRET_ACCESS_KEY,
         }
-        missing_settings = [name for name, value in required_settings.items() if not value]
+        missing_settings = [
+            name for name, value in required_settings.items() if not value
+        ]
         if missing_settings:
             raise ObjectStorageConfigurationException()
 
@@ -155,10 +157,22 @@ class R2StorageService:
         *,
         object_key: str,
         expires_in: int | None = None,
+        filename: str | None = None,
+        content_type: str | None = None,
+        inline: bool = False,
     ) -> str:
+        params = {"Bucket": self.bucket_name, "Key": object_key}
+        if filename:
+            from urllib.parse import quote
+
+            params["ResponseContentDisposition"] = (
+                f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(filename, safe='')}"
+            )
+        if content_type:
+            params["ResponseContentType"] = content_type
         return self.client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": self.bucket_name, "Key": object_key},
+            Params=params,
             ExpiresIn=expires_in or settings.R2_PRESIGNED_URL_TTL_SECONDS,
             HttpMethod="GET",
         )
@@ -169,6 +183,23 @@ class R2StorageService:
 
     def delete_object(self, *, object_key: str) -> None:
         self.client.delete_object(Bucket=self.bucket_name, Key=object_key)
+
+    def list_uploaded_parts(self, *, object_key: str, upload_id: str) -> list[dict]:
+        parts, marker = [], 0
+        while True:
+            response = self.client.list_parts(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                UploadId=upload_id,
+                PartNumberMarker=marker,
+            )
+            parts.extend(
+                {"part_number": p["PartNumber"], "etag": p["ETag"]}
+                for p in response.get("Parts", [])
+            )
+            if not response.get("IsTruncated"):
+                return parts
+            marker = response["NextPartNumberMarker"]
 
     @staticmethod
     def _validate_object_metadata(object_key: str, content_sha256: str) -> None:

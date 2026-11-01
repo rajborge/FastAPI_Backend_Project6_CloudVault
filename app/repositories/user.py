@@ -1,4 +1,4 @@
-from sqlalchemy import select,or_
+from sqlalchemy import select,or_,update,func
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -13,6 +13,18 @@ class UserRepository(BaseRepository[User]):
         stmt=select(User).where(User.email==email)
         result=self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    def release_storage(self, user_id: UUID, size: int) -> None:
+        # The database performs arithmetic under its row lock; never write an
+        # absolute counter copied from a previously loaded User instance.
+        self.db.execute(update(User).where(User.id == user_id).values(
+            storage_used=func.greatest(0, User.storage_used - size)
+        ).execution_options(synchronize_session=False))
+
+    def invalidate_access(self, user_id: UUID) -> None:
+        self.db.execute(update(User).where(User.id == user_id).values(
+            auth_version=User.auth_version + 1
+        ).execution_options(synchronize_session=False))
     
     def get_user_by_username(self,username:str)->User |None:
         stmt=select(User).where(User.username==username)
@@ -42,6 +54,7 @@ class UserRepository(BaseRepository[User]):
             select(User)
             .where(User.id==user_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         result=self.db.execute(stmt)
         return result.scalar_one_or_none()

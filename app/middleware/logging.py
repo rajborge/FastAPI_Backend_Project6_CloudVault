@@ -5,6 +5,7 @@ from starlette.responses import Response
 
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.core.privacy import redact_path
 
 logger = get_logger("request")
 
@@ -22,6 +23,7 @@ async def logging_middleware(
     """
 
     start_time = time.perf_counter()
+    path = redact_path(request.url.path)
 
     try:
         response = await call_next(request)
@@ -36,7 +38,7 @@ async def logging_middleware(
             logger.error(
                 message,
                 request.method,
-                request.url.path,
+                path,
                 response.status_code,
                 duration,
             )
@@ -45,7 +47,7 @@ async def logging_middleware(
             logger.warning(
                 message,
                 request.method,
-                request.url.path,
+                path,
                 response.status_code,
                 duration,
             )
@@ -54,7 +56,7 @@ async def logging_middleware(
             logger.info(
                 message,
                 request.method,
-                request.url.path,
+                path,
                 response.status_code,
                 duration,
             )
@@ -67,7 +69,7 @@ async def logging_middleware(
         logger.exception(
             "%s %s -> Unhandled Exception (%.2f ms)",
             request.method,
-            request.url.path,
+            path,
             duration,
         )
 

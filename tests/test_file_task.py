@@ -23,6 +23,8 @@ def test_scan_task_updates_file_state_and_usage(
     file_path.write_bytes(content)
     file = SimpleNamespace(
         id=uuid4(),
+        user_id=uuid4(),
+        original_name="payload.bin",
         scan_status="PENDING_SCAN",
         storage_backend="local",
         storage_path=str(file_path),
@@ -53,6 +55,11 @@ def test_scan_task_updates_file_state_and_usage(
         lambda db: blob_repository,
     )
     monkeypatch.setattr(file_task_module, "ClamAVService", lambda: scanner)
+    user_repository = Mock()
+    def release_storage(user_id, size):
+        file.user.storage_used -= size
+    user_repository.release_storage.side_effect = release_storage
+    monkeypatch.setattr(file_task_module, "UserRepository", lambda db: user_repository)
 
     result = file_task_module.scan_file_task.run(str(file.id))
 

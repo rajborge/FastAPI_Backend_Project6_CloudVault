@@ -1,8 +1,11 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+from app.db.models.sharedFile import SharedFile
+from app.db.models.file import File
 
 from ..core.config import settings
 from ..core.dependencies import get_current_user
@@ -18,6 +21,15 @@ from ..services.shared_file_service import SharedFileService
 
 
 router = APIRouter(prefix="/shares", tags=["shares"])
+
+
+@router.get("")
+def list_my_shares(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.execute(select(SharedFile, File.original_name).join(File, File.id == SharedFile.file_id)
+        .where(SharedFile.created_by == current_user.id).order_by(SharedFile.created_at.desc()).limit(200)).all()
+    return [{"id": s.id, "name": name, "is_active": s.is_active, "expires_at": s.expires_at,
+             "download_count": s.download_count, "max_downloads": s.max_downloads,
+             "share_url": f"{settings.FILE_SHARE_URL.rstrip('/')}/shares/{s.token}"} for s, name in rows]
 
 
 @router.post("/share_file", response_model=ShareResponse)
@@ -56,7 +68,10 @@ def download_shared_file(
         password=request.password,
     )
     if isinstance(path, str):
-        return RedirectResponse(path)
+        if request.resolve:
+            return JSONResponse({"url": path, "external": True, "filename": file.original_name},
+                headers={"X-CloudVault-Download-Link": "1"})
+        return RedirectResponse(path, status_code=303)
     return FileResponse(
         path=path,
         filename=file.original_name,

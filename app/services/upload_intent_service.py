@@ -167,11 +167,15 @@ class UploadIntentService:
         user: User,
         parts: list[dict],
     ) -> File:
-        intent = self._get_open_intent(
-            intent_id=intent_id,
-            user=user,
-            lock=True,
-        )
+        intent = self.intent_repository.get_for_user_for_update(intent_id=intent_id, user_id=user.id)
+        if intent is None:
+            raise UploadIntentNotFoundException()
+        if intent.status == "COMPLETED" and intent.file_id is not None:
+            file = self.file_repository.get_by_id(id=intent.file_id)
+            if file is not None and not file.is_deleted:
+                return file
+            raise InvalidUploadException()
+        intent = self._get_open_intent(intent_id=intent_id, user=user, lock=True)
         locked_user = self.user_repository.get_by_id_for_update(user.id)
         if locked_user is None:
             raise UserNotFoundException()
@@ -185,15 +189,17 @@ class UploadIntentService:
             if object_metadata is None:
                 raise InvalidUploadException()
         else:
-            expected_part_count = ceil(intent.expected_size / self.chunk_size_bytes)
-            part_numbers = sorted(part["PartNumber"] for part in parts)
-            if part_numbers != list(range(1, expected_part_count + 1)):
-                raise InvalidUploadException()
-            object_metadata = self.storage.complete_multipart_upload(
-                object_key=intent.object_key,
-                upload_id=intent.multipart_upload_id,
-                parts=parts,
-            )
+            object_metadata = self.storage.head_object_if_exists(object_key=intent.object_key)
+            if object_metadata is None:
+                expected_part_count = ceil(intent.expected_size / self.chunk_size_bytes)
+                part_numbers = sorted(part["PartNumber"] for part in parts)
+                if part_numbers != list(range(1, expected_part_count + 1)):
+                    raise InvalidUploadException()
+                object_metadata = self.storage.complete_multipart_upload(
+                    object_key=intent.object_key,
+                    upload_id=intent.multipart_upload_id,
+                    parts=parts,
+                )
 
         if (
             object_metadata["size"] != intent.expected_size
@@ -228,6 +234,8 @@ class UploadIntentService:
             folder_id=intent.folder_id,
         )
         self.file_repository.create(file)
+        self.db.flush()
+        intent.file_id = file.id
         self._release_reservation(locked_user, intent.expected_size)
         locked_user.storage_used += intent.expected_size
         intent.status = "COMPLETED"
@@ -268,6 +276,30 @@ class UploadIntentService:
         self._release_reservation(locked_user, intent.expected_size)
         intent.status = "CANCELLED"
         self.db.commit()
+
+    def resume_intent(self, *, intent_id: UUID, user: User) -> dict:
+        intent = self.intent_repository.get_for_user_for_update(intent_id=intent_id, user_id=user.id)
+        if intent is None:
+            raise UploadIntentNotFoundException()
+        if intent.status == "COMPLETED" and intent.file_id:
+            file = self.file_repository.get_by_id(id=intent.file_id)
+            if file is not None and not file.is_deleted:
+                from app.schemas.file import FileResponse
+                return {"completed_file": FileResponse.model_validate(file, from_attributes=True).model_dump(mode="json")}
+        intent = self._get_open_intent(intent_id=intent_id, user=user)
+        multipart = intent.multipart_upload_id is not None
+        uploaded = self.storage.head_object_if_exists(object_key=intent.object_key) is not None
+        return {
+            "id": intent.id, "object_key": intent.object_key, "expires_at": intent.expires_at,
+            "multipart": multipart, "chunk_size_bytes": self.chunk_size_bytes,
+            "multipart_upload_id": intent.multipart_upload_id,
+            "upload_url": None if multipart else self.storage.create_upload_url(
+                object_key=intent.object_key, content_type=intent.mime_type,
+                content_sha256=intent.content_sha256, content_length=intent.expected_size),
+            "completed_parts": self.storage.list_uploaded_parts(object_key=intent.object_key,
+                upload_id=intent.multipart_upload_id) if multipart and not uploaded else [],
+            "already_uploaded": uploaded,
+        }
 
     def cleanup_expired_intents(self) -> int:
         now = datetime.now(timezone.utc)

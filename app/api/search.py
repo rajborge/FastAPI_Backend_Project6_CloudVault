@@ -2,6 +2,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from sqlalchemy import update
+from app.db.models.file import File
 
 from ..core.dependencies import get_current_user
 from ..db.database import get_db
@@ -34,12 +36,14 @@ def index_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    SearchService(db).validate_index_request(
+    file = SearchService(db).validate_index_request(
         file_id=file_id,
         user=current_user,
     )
-    enqueue_file_index(file_id)
-    return {"status": "queued", "file_id": str(file_id)}
+    file.index_status, file.index_error, file.index_lease = "PENDING", None, None
+    db.commit()
+    queued = enqueue_file_index(file_id)
+    return {"status": "queued" if queued else "pending_recovery", "file_id": str(file_id)}
 
 
 @router.post(
@@ -52,6 +56,8 @@ def reindex_all_clean_files(
     db: Session = Depends(get_db),
 ):
     file_ids = SearchService(db).reindexable_file_ids(user=current_user)
-    for file_id in file_ids:
-        enqueue_file_index(file_id)
-    return ReindexResponse(status="queued", queued=len(file_ids))
+    db.execute(update(File).where(File.id.in_(file_ids)).values(
+        index_status="PENDING", index_error=None, index_lease=None))
+    db.commit()
+    queued = sum(bool(enqueue_file_index(file_id)) for file_id in file_ids)
+    return ReindexResponse(status="queued" if queued == len(file_ids) else "pending_recovery", queued=queued)

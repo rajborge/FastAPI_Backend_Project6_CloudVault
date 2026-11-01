@@ -24,6 +24,7 @@ class ShareResponse(BaseModel):
 
 class ShareAccessRequest(BaseModel):
     password: str | None = None
+    resolve: bool = False
 
 
 # Backward-compatible alias for your existing imports/tests.

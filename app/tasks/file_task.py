@@ -2,9 +2,13 @@ import logging
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import text
+from app.core.config import settings
+from app.db.models.collaboration import Notification
+from app.repositories.user import UserRepository
+from app.services.embedding_service import embed_text, model_name
 
 from app.core.celery_app import celery_app
 from app.db.database import SessionLocal
@@ -36,6 +40,11 @@ def scan_file_task(self, file_id: str) -> str:
         if file is None or file.scan_status not in {"PENDING_SCAN", "SCANNING"}:
             return "skipped"
 
+        if file.scan_status == "SCANNING" and file.scan_lease is not None:
+            return "skipped"
+        lease = uuid4()
+        file.scan_lease = lease
+        file.scan_started_at = datetime.now(timezone.utc)
         file.scan_status = "SCANNING"
         db.commit()
 
@@ -55,7 +64,7 @@ def scan_file_task(self, file_id: str) -> str:
                     scan_status, content_sha256 = scanner.scan_stream(stream)
 
             file = repository.get_by_id_for_update(UUID(file_id))
-            if file is None or file.scan_status in {"CLEAN", "INFECTED"}:
+            if file is None or file.scan_lease != lease or file.scan_status in {"CLEAN", "INFECTED"}:
                 return "skipped"
 
             duplicate_object_key = None
@@ -67,16 +76,17 @@ def scan_file_task(self, file_id: str) -> str:
                 else:
                     Path(file.storage_path).unlink(missing_ok=True)
 
-                file.user.storage_used = max(
-                    0,
-                    file.user.storage_used - file.size,
-                )
+                UserRepository(db).release_storage(file.user_id, file.size)
             else:
                 _, duplicate_object_key = blob_repository.attach_clean_file(
                     file=file,
                     content_sha256=content_sha256,
                 )
 
+            file.scan_lease = None
+            file.scan_started_at = None
+            db.add(Notification(user_id=file.user_id, file_id=file.id, kind="scan",
+                message=f"{file.original_name[:200]}: {scan_status.lower()}."))
             file.scan_status = scan_status
             file.content_sha256 = content_sha256
             db.commit()
@@ -105,8 +115,10 @@ def scan_file_task(self, file_id: str) -> str:
         except Exception:
             db.rollback()
             file = repository.get_by_id_for_update(UUID(file_id))
-            if file is not None and file.scan_status == "SCANNING":
+            if file is not None and file.scan_status == "SCANNING" and file.scan_lease == lease:
                 file.scan_status = "PENDING_SCAN"
+                file.scan_lease = None
+                file.scan_started_at = None
                 db.commit()
             raise
     finally:
@@ -124,20 +136,29 @@ def scan_file_task(self, file_id: str) -> str:
 def index_file_task(self, file_id: str) -> str:
     db = SessionLocal()
     repository = FileRepository(db)
+    index_lease = None
 
     try:
-        file = repository.get_by_id(UUID(file_id))
+        file = repository.get_by_id_for_update(UUID(file_id))
         if file is None or file.is_deleted or file.scan_status != "CLEAN":
             return "skipped"
 
+        index_lease = uuid4()
+        file.index_lease = index_lease
+        file.index_status = "INDEXING"
+        file.index_error = None
+        db.commit()
         payload = _read_payload(file)
         extracted_text = _extract_text(payload, file.mime_type).strip()
 
         # Filename is intentionally included in the vector so filename search and
         # content search both participate in the hybrid search endpoint.
         searchable_text = f"{file.original_name}\n{extracted_text}".strip()
-        embedding = vector_literal(hashed_text_vector(searchable_text))
+        embedding = vector_literal(embed_text(searchable_text))
 
+        file = repository.get_by_id_for_update(UUID(file_id))
+        if file is None or file.is_deleted or file.version_of is not None or file.index_lease != index_lease:
+            return "skipped"
         db.execute(
             text(
                 """
@@ -145,16 +166,19 @@ def index_file_task(self, file_id: str) -> str:
                     file_id,
                     extracted_text,
                     embedding,
+                    embedding_model,
                     indexed_at
                 ) VALUES (
                     :file_id,
                     :extracted_text,
                     CAST(:embedding AS vector),
+                    :embedding_model,
                     :indexed_at
                 )
                 ON CONFLICT (file_id) DO UPDATE SET
                     extracted_text = EXCLUDED.extracted_text,
                     embedding = EXCLUDED.embedding,
+                    embedding_model = EXCLUDED.embedding_model,
                     indexed_at = EXCLUDED.indexed_at
                 """
             ),
@@ -162,9 +186,16 @@ def index_file_task(self, file_id: str) -> str:
                 "file_id": file.id,
                 "extracted_text": extracted_text,
                 "embedding": embedding,
+                "embedding_model": model_name(),
                 "indexed_at": datetime.now(timezone.utc),
             },
         )
+        file = repository.get_by_id_for_update(UUID(file_id))
+        if file is not None:
+            file.index_lease = None
+            file.index_status = "READY"
+            file.index_error = None
+            db.add(Notification(user_id=file.user_id, file_id=file.id, kind="index", message="File search index is ready."))
         db.commit()
 
         logger.info(
@@ -176,6 +207,14 @@ def index_file_task(self, file_id: str) -> str:
         return "indexed"
     except Exception:
         db.rollback()
+        file = repository.get_by_id_for_update(UUID(file_id))
+        if file is not None and file.index_lease == index_lease:
+            file.index_lease = None
+            file.index_status = "FAILED"
+            file.index_error = "Text extraction or indexing failed. Retry indexing or contact the administrator."
+            db.add(Notification(user_id=file.user_id, file_id=file.id, kind="index",
+                message="File search indexing failed. Open file tools to retry."))
+            db.commit()
         logger.exception("File indexing failed: file_id=%s", file_id)
         raise
     finally:
@@ -191,22 +230,26 @@ def index_after_scan_task(scan_status: str, file_id: str) -> str:
     return "queued"
 
 
-def enqueue_file_scan(file_id: UUID) -> None:
+def enqueue_file_scan(file_id: UUID) -> bool:
     try:
         workflow = (
             scan_file_task.s(str(file_id))
             | index_after_scan_task.s(str(file_id))
         )
         workflow.delay()
+        return True
     except Exception:
-        logger.exception("Failed to enqueue file scan: file_id=%s", file_id)
+        logger.error("Failed to enqueue file scan: file_id=%s; recovery will retry", file_id)
+        return False
 
 
-def enqueue_file_index(file_id: UUID) -> None:
+def enqueue_file_index(file_id: UUID) -> bool:
     try:
         index_file_task.delay(str(file_id))
+        return True
     except Exception:
-        logger.exception("Failed to enqueue file index: file_id=%s", file_id)
+        logger.error("Failed to enqueue file index: file_id=%s; recovery will retry", file_id)
+        return False
 
 
 def _read_payload(file) -> bytes:
@@ -224,40 +267,51 @@ def _read_payload(file) -> bytes:
 
 def _extract_text(payload: bytes, mime_type: str) -> str:
     mime_type = (mime_type or "").lower()
-
     if mime_type.startswith("text/"):
-        return payload.decode("utf-8", errors="ignore")
-
+        return payload.decode("utf-8", errors="replace")[:2_000_000]
     if mime_type == "application/pdf":
+        from pypdf import PdfReader
+        reader = PdfReader(BytesIO(payload))
+        if len(reader.pages) > settings.OCR_MAX_PAGES:
+            raise ValueError("PDF exceeds the configured page limit.")
+        pages = []
+        document = None
         try:
-            from pypdf import PdfReader
-
-            reader = PdfReader(BytesIO(payload))
-            return "\n".join(
-                page.extract_text() or ""
-                for page in reader.pages
-            )
-        except Exception:
-            logger.exception("PDF text extraction failed")
-            return ""
-
+            for i, page in enumerate(reader.pages):
+                extracted = page.extract_text() or ""
+                if not extracted.strip():
+                    import pypdfium2 as pdfium
+                    if document is None:
+                        document = pdfium.PdfDocument(payload)
+                    pdf_page = document[i]
+                    try:
+                        width, height = pdf_page.get_size()
+                        scale = min(2.0, (settings.OCR_MAX_PIXELS / max(1, width * height)) ** 0.5)
+                        bitmap = pdf_page.render(scale=scale)
+                        try:
+                            extracted = _ocr_image(bitmap.to_pil())
+                        finally:
+                            bitmap.close()
+                    finally:
+                        pdf_page.close()
+                pages.append(extracted)
+        finally:
+            if document is not None:
+                document.close()
+        return "\n".join(pages)[:2_000_000]
     if mime_type.startswith("image/"):
-        try:
-            import pytesseract
-            from PIL import Image, ImageOps
-
-            image = Image.open(BytesIO(payload))
-            image = ImageOps.exif_transpose(image)
-
-            # Tesseract is generally more stable with a standard color mode.
-            if image.mode not in {"RGB", "L"}:
-                image = image.convert("RGB")
-
-            return pytesseract.image_to_string(image)
-        except Exception:
-            logger.exception("Image OCR failed")
-            return ""
-
-    # Unsupported binary formats are still indexed by filename because the
-    # caller includes file.original_name in searchable_text.
+        from PIL import Image
+        with Image.open(BytesIO(payload)) as image:
+            if image.width * image.height > settings.OCR_MAX_PIXELS:
+                raise ValueError("Image exceeds OCR pixel limit.")
+            return _ocr_image(image)
     return ""
+
+
+def _ocr_image(image) -> str:
+    import pytesseract
+    from PIL import ImageOps
+    image = ImageOps.exif_transpose(image)
+    if image.mode not in {"RGB", "L"}:
+        image = image.convert("RGB")
+    return pytesseract.image_to_string(image, timeout=90)

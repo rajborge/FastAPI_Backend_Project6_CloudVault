@@ -1,0 +1,32 @@
+{$PUBLIC_DOMAIN} {
+    encode gzip zstd
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options DENY
+        Strict-Transport-Security "max-age=31536000"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self' https://*.r2.cloudflarestorage.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    }
+    # Do not enable request access logs: sharing paths and account query strings
+    # carry bearer capabilities. API application logs redact share tokens.
+    @backend path /auth/* /users/* /files/* /folders* /permissions* /shares /shares/share_file /shares/*/download /health/* /audit* /search* /notifications*
+    handle @backend {
+        reverse_proxy api:8000 {
+            flush_interval -1
+        }
+    }
+    # Public share metadata uses the same path as the SPA page. The frontend
+    # marks API calls explicitly so page navigation still serves index.html.
+    @share_api {
+        path /shares/*
+        header X-CloudVault-API 1
+    }
+    handle @share_api {
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}

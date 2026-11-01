@@ -11,6 +11,8 @@ from .base_model import BaseModel
 class UploadIntent(BaseModel):
     __tablename__ = "upload_intents"
 
+    file_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"))
+
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),

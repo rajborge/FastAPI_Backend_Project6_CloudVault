@@ -14,6 +14,7 @@ from ..core.exceptions import (
     UserNotFoundException,
 )
 from ..db.database import get_db
+from ..db.database import SessionLocal
 from ..repositories.token_blocklist import (
     TokenBlocklistRepository,
 )
@@ -21,6 +22,13 @@ from ..repositories.user import UserRepository
 
 
 bearer_scheme = HTTPBearer()
+
+
+def get_stream_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    # Streaming responses must not retain the ordinary request-scoped DB
+    # dependency for their entire lifetime.
+    with SessionLocal() as db:
+        return get_current_user(credentials=credentials, db=db)
 
 
 def get_current_user(
@@ -69,5 +77,8 @@ def get_current_user(
 
     if not user.is_active:
         raise InactiveUserException()
+
+    if payload.get("ver", 0) != user.auth_version:
+        raise InvalidCredentialsException()
 
     return user

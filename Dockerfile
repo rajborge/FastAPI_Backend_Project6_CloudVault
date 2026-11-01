@@ -10,8 +10,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-semantic.txt ./
+ARG ENABLE_SEMANTIC_SEARCH=false
+RUN if [ "$ENABLE_SEMANTIC_SEARCH" = "true" ]; then \
+        pip install --no-cache-dir -r requirements-semantic.txt; \
+    else pip install --no-cache-dir -r requirements.txt; fi
 
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini

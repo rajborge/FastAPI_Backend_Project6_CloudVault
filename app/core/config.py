@@ -1,5 +1,7 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings,SettingsConfigDict
+from pydantic import model_validator
+from typing import Literal
 
 class Settings(BaseSettings):
     #===================
@@ -87,6 +89,37 @@ class Settings(BaseSettings):
     SLOW_REQUEST_THRESHOLD: float = 1000
 
     FILE_SHARE_URL:str
+    ACCOUNT_FRONTEND_URL: str = ""
+    ENVIRONMENT: Literal["development", "production", "test"] = "development"
+
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    SCHEDULER_ENABLED: bool = False
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 20
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    REFRESH_COOKIE_SECURE: bool = False
+    MFA_ENCRYPTION_KEY: str = ""
+    REQUIRE_VERIFIED_EMAIL: bool = False
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL: bool = False
+    MAIL_AUTH_ENABLED: bool = True
+    EMBEDDING_MODEL: str = ""
+    OCR_MAX_PAGES: int = 40
+    OCR_MAX_PIXELS: int = 20_000_000
+
+    @model_validator(mode="after")
+    def validate_deployment(self):
+        origins = [value.strip() for value in self.CORS_ORIGINS.split(',') if value.strip()]
+        if not origins or '*' in origins:
+            raise ValueError("CORS_ORIGINS must contain explicit origins.")
+        if self.ENVIRONMENT == "production":
+            if self.DEBUG or len(self.SECRET_KEY.encode()) < 32 or self.SECRET_KEY.startswith('replace-'):
+                raise ValueError("Production requires DEBUG=false and a random JWT secret of at least 32 bytes.")
+            if not self.FILE_SHARE_URL.startswith('https://') or any(not origin.startswith('https://') for origin in origins):
+                raise ValueError("Production frontend URLs and CORS origins must use HTTPS.")
+            if not self.RATE_LIMIT_ENABLED:
+                raise ValueError("Production requires authentication rate limiting.")
+        return self
 
 
     model_config=SettingsConfigDict(
@@ -95,11 +128,24 @@ class Settings(BaseSettings):
     )
 
     @property
+    def account_frontend_url(self) -> str:
+        from urllib.parse import urlsplit
+
+        if self.ACCOUNT_FRONTEND_URL:
+            return self.ACCOUNT_FRONTEND_URL.rstrip("/")
+        url = urlsplit(self.FILE_SHARE_URL)
+        if self.ENVIRONMENT != "production" and url.hostname in {"localhost", "127.0.0.1", "api"} and url.port == 8000:
+            return next((origin.strip().rstrip("/") for origin in self.CORS_ORIGINS.split(",") if origin.strip()), "http://localhost:5173")
+        return self.FILE_SHARE_URL.rstrip("/")
+
+    @property
     def DATABASE_URL(self)->str:
-        return(
-            f"postgresql+psycopg://{self.DB_USERNAME}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-        )
+        from sqlalchemy.engine import URL
+        return URL.create(
+            "postgresql+psycopg", username=self.DB_USERNAME,
+            password=self.DB_PASSWORD, host=self.DB_HOST,
+            port=self.DB_PORT, database=self.DB_NAME,
+        ).render_as_string(hide_password=False)
     
     @property
     def REDIS_URL(self)->str:

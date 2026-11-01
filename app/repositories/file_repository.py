@@ -23,6 +23,7 @@ class FileRepository(BaseRepository[File]):
             File.id == file_id,
             File.user_id == user_id,
             File.is_deleted.is_(False),
+                File.version_of.is_(None),
         )
         return cast(File | None, self.db.execute(stmt).scalar_one_or_none())
 
@@ -47,6 +48,7 @@ class FileRepository(BaseRepository[File]):
                 File.folder_id == folder_id,
                 File.user_id == user_id,
                 File.is_deleted.is_(False),
+                File.version_of.is_(None),
             )
             .order_by(File.original_name)
         )
@@ -62,6 +64,7 @@ class FileRepository(BaseRepository[File]):
             .where(
                 File.folder_id == folder_id,
                 File.is_deleted.is_(False),
+                File.version_of.is_(None),
             )
             .order_by(File.original_name)
         )
@@ -85,8 +88,9 @@ class FileRepository(BaseRepository[File]):
             File.id == file_id,
             File.user_id == user_id,
             File.is_deleted.is_(True),
+                File.version_of.is_(None),
         )
-        return cast(File | None, self.db.execute(stmt).scalar_one_or_none())
+        return cast(File | None, self.db.execute(stmt.with_for_update().execution_options(populate_existing=True)).scalar_one_or_none())
 
     def list_deleted_files(
         self,
@@ -98,6 +102,7 @@ class FileRepository(BaseRepository[File]):
             .where(
                 File.user_id == user_id,
                 File.is_deleted.is_(True),
+                File.version_of.is_(None),
             )
             .order_by(File.deleted_at.desc())
         )
@@ -111,12 +116,14 @@ class FileRepository(BaseRepository[File]):
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         conditions = [
             File.is_deleted.is_(True),
+                File.version_of.is_(None),
             File.deleted_at <= cutoff,
+            File.version_of.is_(None),
         ]
         if user_id is not None:
             conditions.append(File.user_id == user_id)
 
-        stmt = select(File).where(*conditions)
+        stmt = select(File).where(*conditions).order_by(File.id).with_for_update(skip_locked=True)
         return cast(list[File], list(self.db.execute(stmt).scalars().all()))
 
     def get_by_name_and_folder(
@@ -131,6 +138,7 @@ class FileRepository(BaseRepository[File]):
             File.folder_id == folder_id,
             File.user_id == user_id,
             File.is_deleted.is_(False),
+                File.version_of.is_(None),
         )
         return cast(File | None, self.db.execute(stmt).scalar_one_or_none())
 
@@ -144,5 +152,6 @@ class FileRepository(BaseRepository[File]):
             File.original_name == name,
             File.folder_id == folder_id,
             File.is_deleted.is_(False),
+                File.version_of.is_(None),
         )
         return cast(File | None, self.db.execute(stmt).scalar_one_or_none())

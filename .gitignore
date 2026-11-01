@@ -43,3 +43,7 @@ node_modules/
 dist/
 dist-ssr/
 *.tsbuildinfo
+test-results/
+playwright-report/
+backups/
+tmp/

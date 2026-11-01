@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 class File(BaseModel):
     __tablename__="files"
 
+    version_of: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("files.id", ondelete="CASCADE"), index=True,
+    )
+    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scan_lease: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
+    index_status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)
+    index_error: Mapped[str | None] = mapped_column(String(300))
+    index_lease: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
+
     original_name:Mapped[str]=mapped_column(
         String(255),
         nullable=False,

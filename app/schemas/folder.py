@@ -13,6 +13,10 @@ class FolderResponse(BaseModel):
     name:str
     parent_id:UUID | None=None
     created_at:datetime
+    owner_id: UUID | None = None
+    owner_username: str | None = None
+    effective_role: str | None = None
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
 class FolderUpdate(BaseModel):
     name:str=Field(min_length=1,max_length=255)
