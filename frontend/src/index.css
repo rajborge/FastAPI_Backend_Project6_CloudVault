@@ -1,0 +1,75 @@
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #23312d;
+  background: #f5f8f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
+  --ink: #23312d;
+  --muted: #73817c;
+  --line: #e1e8e4;
+  --surface: #ffffff;
+  --canvas: #f5f8f6;
+  --green: #147b60;
+  --green-dark: #0e604a;
+  --green-soft: #e7f3ed;
+  --coral: #e36d4c;
+  --coral-soft: #fff0eb;
+  --blue: #36758b;
+  --yellow: #e0b348;
+  --shadow: 0 10px 26px rgba(33, 54, 45, 0.07);
+  font-optical-sizing: auto;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex='0']:focus-visible {
+  outline: 3px solid rgba(54, 117, 139, 0.3);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #123e32;
+  background: #cce8dc;
+}
+
+#root {
+  min-height: 100vh;
+}

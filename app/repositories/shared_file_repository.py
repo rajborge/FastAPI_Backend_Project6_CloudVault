@@ -34,4 +34,30 @@ class SharedFileRepository(BaseRepository[SharedFile]):
         result=self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    def get_by_token_for_update(self, *, token:str)->SharedFile | None:
+        statement=(
+            select(SharedFile)
+            .where(SharedFile.token==token)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self.db.execute(statement).scalar_one_or_none()
+
+    def get_by_id_and_creator_for_update(
+        self,
+        *,
+        share_id:UUID,
+        creator_id:UUID,
+    )->SharedFile | None:
+        statement=(
+            select(SharedFile)
+            .where(
+                SharedFile.id==share_id,
+                SharedFile.created_by==creator_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self.db.execute(statement).scalar_one_or_none()
+
         

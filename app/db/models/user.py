@@ -112,3 +112,9 @@ class User(BaseModel):
         default=FREE_STORAGE_LIMIT,
         nullable=False,
     )
+
+    storage_reserved:Mapped[int]=mapped_column(
+        BigInteger,
+        default=0,
+        nullable=False,
+    )

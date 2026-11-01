@@ -1,34 +1,73 @@
-from fastapi import Depends
-from fastapi.security import HTTPAuthorizationCredentials,HTTPBearer
-from sqlalchemy.orm import Session
 from uuid import UUID
 
-from .jwt import decode_token
-from ..db.database import get_db
-from ..db.models.user import User
-from ..repositories.user import UserRepository
-from ..repositories.token_blocklist import TokenBlocklistRepository
-from ..core.exceptions import UserNotFoundException,InvalidCredentialsException
+from fastapi import Depends
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
+from sqlalchemy.orm import Session
 
-bearer_scheme=HTTPBearer()
+from .jwt import decode_token
+from ..core.exceptions import (
+    InactiveUserException,
+    InvalidCredentialsException,
+    UserNotFoundException,
+)
+from ..db.database import get_db
+from ..repositories.token_blocklist import (
+    TokenBlocklistRepository,
+)
+from ..repositories.user import UserRepository
+
+
+bearer_scheme = HTTPBearer()
+
 
 def get_current_user(
-        credentials:HTTPAuthorizationCredentials=Depends(bearer_scheme),
-        db:Session=Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(
+        bearer_scheme
+    ),
+    db: Session = Depends(get_db),
 ):
-    payload=decode_token(credentials.credentials)
-    print("Payload",payload)
-    jti=UUID(payload["jti"])
-    blocklisted=(
-        TokenBlocklistRepository(db)
-        .get_by_jti(UUID(payload["jti"]))
+    payload = decode_token(
+        credentials.credentials
     )
-    print("Blocked",blocklisted)
-    if blocklisted:
+
+    if payload.get("type") != "access":
         raise InvalidCredentialsException()
-    user_id=UUID(payload["sub"])
-    user=UserRepository(db).get_by_id(user_id)
+
+    try:
+        jti = UUID(
+            payload["jti"]
+        )
+
+        user_id = UUID(
+            payload["sub"]
+        )
+
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        raise InvalidCredentialsException()
+
+    blocklisted = (
+        TokenBlocklistRepository(db)
+        .get_by_jti(jti)
+    )
+
+    if blocklisted is not None:
+        raise InvalidCredentialsException()
+
+    user = UserRepository(db).get_by_id(
+        user_id
+    )
 
     if user is None:
         raise UserNotFoundException()
+
+    if not user.is_active:
+        raise InactiveUserException()
+
     return user

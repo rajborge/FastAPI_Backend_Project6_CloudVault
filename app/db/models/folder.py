@@ -46,7 +46,6 @@ class Folder(BaseModel):
         back_populates="parent",
     )
 
-    files:Mapped["File"]=relationship(
+    files:Mapped[list["File"]]=relationship(
         back_populates="folder",
-        cascade="all,delete-orphan",
     )

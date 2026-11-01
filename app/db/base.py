@@ -8,5 +8,7 @@ from app.db.models.file import File
 from app.db.models.auditlog import AuditLog
 from app.db.models.sharedFile import SharedFile
 from app.db.models.permission import Permission
+from app.db.models.upload_intent import UploadIntent
+from app.db.models.storage_blob import StorageBlob
 
-__all__=["Base","User","RefreshToken","TokenBlocklist","Folder","File","AuditLog","SharedFile","Permission"]
+__all__=["Base","User","RefreshToken","TokenBlocklist","Folder","File","AuditLog","SharedFile","Permission","UploadIntent","StorageBlob"]

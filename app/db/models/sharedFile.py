@@ -2,7 +2,7 @@ from uuid import UUID
 from typing import TYPE_CHECKING
 from datetime import datetime
 
-from sqlalchemy import Boolean,String,DateTime,ForeignKey
+from sqlalchemy import Boolean,String,DateTime,ForeignKey,Integer
 from sqlalchemy.orm import Mapped,mapped_column,relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -44,6 +44,11 @@ class SharedFile(BaseModel):
     download_count:Mapped[int]=mapped_column(
         nullable=False,
         default=0,
+    )
+
+    max_downloads:Mapped[int | None]=mapped_column(
+        Integer,
+        nullable=True,
     )
 
     is_active:Mapped[bool]=mapped_column(

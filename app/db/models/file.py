@@ -38,6 +38,31 @@ class File(BaseModel):
         nullable=False,
     )
 
+    content_sha256:Mapped[str | None]=mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+    )
+
+    storage_backend:Mapped[str]=mapped_column(
+        String(20),
+        default="local",
+        nullable=False,
+    )
+
+    scan_status:Mapped[str]=mapped_column(
+        String(20),
+        default="PENDING_SCAN",
+        nullable=False,
+    )
+
+    blob_id:Mapped[UUID | None]=mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("storage_blobs.id",ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     storage_path: Mapped[str] = mapped_column(
         String(500),
         nullable=False,

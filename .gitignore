@@ -20,3 +20,26 @@ uploads/
 #IDE
 .vscode/
 .idea/
+
+# Local secrets (publish only the placeholder template)
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local runtime data and backups
+logs/
+*.log
+backup_*/
+.venv/
+venv/
+*.db
+*.sqlite3
+
+# Frontend dependencies and generated output
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo

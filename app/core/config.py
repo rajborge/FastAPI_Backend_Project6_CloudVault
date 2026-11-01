@@ -52,6 +52,25 @@ class Settings(BaseSettings):
     AWS_BUCKET_NAME: str = ""
 
     # ===========================
+    # Cloudflare R2
+    # ===========================
+    R2_ENDPOINT_URL: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET_NAME: str = ""
+    R2_PRESIGNED_URL_TTL_SECONDS: int = 600
+    R2_UPLOAD_MULTIPART_THRESHOLD_MB: int = 100
+    R2_MULTIPART_PART_SIZE_MB: int = 16
+    UPLOAD_INTENT_TTL_MINUTES: int = 60
+
+    # ===========================
+    # Malware scanning
+    # ===========================
+    CLAMAV_HOST: str = "localhost"
+    CLAMAV_PORT: int = 3310
+    CLAMAV_TIMEOUT_SECONDS: int = 300
+
+    # ===========================
     # Uploads
     # ===========================
     MAX_FILE_SIZE_MB: int

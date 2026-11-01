@@ -1,5 +1,6 @@
 from sqlalchemy import select,or_
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from ..db.models.user import User
 from .base import BaseRepository
@@ -32,6 +33,15 @@ class UserRepository(BaseRepository[User]):
                     User.username==identifier,
                 )
             )
+        )
+        result=self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def get_by_id_for_update(self,user_id:UUID)->User | None:
+        stmt=(
+            select(User)
+            .where(User.id==user_id)
+            .with_for_update()
         )
         result=self.db.execute(stmt)
         return result.scalar_one_or_none()

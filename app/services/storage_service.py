@@ -1,9 +1,10 @@
-import os
-import shutil
+import hashlib
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
+
+from ..core.exceptions import StorageQuotaExceededException
 
 class StorageService:
     def __init__(self):
@@ -26,23 +27,36 @@ class StorageService:
     def save_file(
             self,
             file:UploadFile,
-    )->tuple[str,str]:
+            *,
+            max_bytes:int | None=None,
+    )->tuple[str,str,int,str]:
         
         stored_name=self.generate_filename(
-            file.filename,
+            file.filename or "upload",
         )
 
         storage_path=self.upload_dir/stored_name
+        size=0
+        digest=hashlib.sha256()
 
-        with storage_path.open("wb") as buffer:
-            shutil.copyfileobj(
-                file.file,
-                buffer,
-            )
+        try:
+            with storage_path.open("wb") as buffer:
+                while chunk:=file.file.read(1024 * 1024):
+                    if max_bytes is not None and size+len(chunk)>max_bytes:
+                        raise StorageQuotaExceededException()
+
+                    buffer.write(chunk)
+                    digest.update(chunk)
+                    size+=len(chunk)
+        except Exception:
+            storage_path.unlink(missing_ok=True)
+            raise
 
         return (
             stored_name,
             str(storage_path),
+            size,
+            digest.hexdigest(),
         )
     
     def get_file_path(

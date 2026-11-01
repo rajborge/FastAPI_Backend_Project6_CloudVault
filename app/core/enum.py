@@ -42,5 +42,7 @@ class ResourceType(str,Enum):
     FOLDER="folder"
 
 class PermissionRole(str,Enum):
+    OWNER="owner"
+    COMMENTER="commenter"
     VIEWER="viewer"
     EDITOR="editor"

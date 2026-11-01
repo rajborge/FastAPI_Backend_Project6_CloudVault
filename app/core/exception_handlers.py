@@ -12,10 +12,17 @@ from ..core.exceptions import(
     StorageQuotaExceededException,
     ShareNotFound,
     ShareLinkExpired,
+    ShareDownloadLimitExceeded,
     InvalidShareException,
     DuplicateFileNameException,
     FileNotFoundException,
     InvalidFolderMoveException,
+    FileNotReadyException,
+    UploadIntentNotFoundException,
+    UploadIntentExpiredException,
+    InvalidUploadException,
+    ObjectStorageConfigurationException,
+    PermissionNotFoundException,
 )
 
 def register_exception_handlers(app:FastAPI):
@@ -118,6 +125,16 @@ def register_exception_handlers(app:FastAPI):
             status_code=410,
             content={"detail":"Share Link Has Expired."}
         )
+
+    @app.exception_handler(ShareDownloadLimitExceeded)
+    async def share_download_limit_handler(
+        request:Request,
+        exc:ShareDownloadLimitExceeded,
+    ):
+        return JSONResponse(
+            status_code=410,
+            content={"detail":"Share download limit has been reached."},
+        )
     
     @app.exception_handler(InvalidShareException)
     async def invalid_share_exception(
@@ -158,3 +175,42 @@ def register_exception_handlers(app:FastAPI):
             status_code=400,
             content={"detail":"Invalid Folder destination."}
         )
+
+    @app.exception_handler(FileNotReadyException)
+    async def file_not_ready_handler(request:Request,exc:FileNotReadyException):
+        return JSONResponse(
+            status_code=409,
+            content={"detail":"File is not available until scanning completes."},
+        )
+
+    @app.exception_handler(UploadIntentNotFoundException)
+    async def upload_intent_not_found_handler(
+        request:Request,
+        exc:UploadIntentNotFoundException,
+    ):
+        return JSONResponse(status_code=404,content={"detail":"Upload intent not found."})
+
+    @app.exception_handler(UploadIntentExpiredException)
+    async def upload_intent_expired_handler(
+        request:Request,
+        exc:UploadIntentExpiredException,
+    ):
+        return JSONResponse(status_code=410,content={"detail":"Upload intent expired."})
+
+    @app.exception_handler(InvalidUploadException)
+    async def invalid_upload_handler(request:Request,exc:InvalidUploadException):
+        return JSONResponse(status_code=422,content={"detail":"Uploaded object failed validation."})
+
+    @app.exception_handler(ObjectStorageConfigurationException)
+    async def object_storage_unavailable_handler(
+        request:Request,
+        exc:ObjectStorageConfigurationException,
+    ):
+        return JSONResponse(status_code=503,content={"detail":"Object storage is not configured."})
+
+    @app.exception_handler(PermissionNotFoundException)
+    async def permission_not_found_handler(
+        request:Request,
+        exc:PermissionNotFoundException,
+    ):
+        return JSONResponse(status_code=404,content={"detail":"Permission not found."})
